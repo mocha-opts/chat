@@ -1,0 +1,91 @@
+# Dependencies & build output (reinstalled / regenerated inside the image)
+node_modules/
+dist/
+generated/
+.pnpm-store/
+.swc/
+.turbo/
+.parcel-cache/
+.warmup/
+*.tsbuildinfo
+
+# Generated artifacts
+swagger.json
+src/metadata.ts
+
+# Tests & coverage
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment & secrets
+.env*
+config.yaml
+config.yml
+keys/
+*.pem
+*.pub
+jwks.json
+
+# Git & Docker
+.git/
+.gitignore
+.gitattributes
+.dockerignore
+docker-compose*.yml
+ci/
+
+# CI / project meta
+.github/
+.husky/
+
+# Tooling configs not needed for build
+.editorconfig
+.prettierrc
+.prettierignore
+.commitlintrc
+cspell.json
+eslint.config.mjs
+nodemon.json
+
+# Docs
+docs/
+*.md
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE & editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/
+
+# Temporary & cache files
+.cache/
+.temp/
+.tmp/
+temp/
+tmp/
+
+# AI Tools
+.claude/
+.cursor/
+.cursorignore
+.cursorindexingignore
+.copilot/
+.windsurfrules
+plan.md

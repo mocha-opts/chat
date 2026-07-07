@@ -1,0 +1,37 @@
+import { Response } from '@common/response/decorators/response.decorator';
+import { ApiKeyProtected } from '@modules/api-key/decorators/api-key.decorator';
+import {
+    AuthJwtAccessProtected,
+    AuthJwtPayload,
+} from '@modules/auth/decorators/auth.jwt.decorator';
+import { RoleProtected } from '@modules/role/decorators/role.decorator';
+import { TermPolicyAcceptanceProtected } from '@modules/term-policy/decorators/term-policy.decorator';
+import { UserProtected } from '@modules/user/decorators/user.decorator';
+import { UserUserDeleteSelfDoc } from '@modules/user/docs/user.user.doc';
+import { UserService } from '@modules/user/services/user.service';
+import { Controller, Delete } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { EnumRoleType } from '@generated/prisma-client';
+
+@ApiTags('modules.user.user')
+@Controller({
+    version: '1',
+    path: '/user',
+})
+export class UserUserController {
+    constructor(private readonly userService: UserService) {}
+
+    @UserUserDeleteSelfDoc()
+    @Response('user.deleteSelf')
+    @TermPolicyAcceptanceProtected()
+    @RoleProtected(EnumRoleType.user)
+    @UserProtected()
+    @AuthJwtAccessProtected()
+    @ApiKeyProtected()
+    @Delete('/delete/self')
+    async deleteSelf(
+        @AuthJwtPayload('userId') userId: string
+    ): Promise<void> {
+        return this.userService.deleteSelf(userId);
+    }
+}

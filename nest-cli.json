@@ -1,0 +1,42 @@
+{
+    "$schema": "https://json.schemastore.org/nest-cli",
+    "collection": "@nestjs/schematics",
+    "sourceRoot": "src",
+    "compilerOptions": {
+        "deleteOutDir": true,
+        "watchAssets": true,
+        "typeCheck": false,
+        "builder": {
+            "type": "swc",
+            "options": {
+                "swcrcPath": ".swcrc",
+                "outDir": "dist"
+            }
+        },
+        "plugins": [],
+        "assets": [
+            {
+                "include": "languages/**/*",
+                "outDir": "dist"
+            },
+            {
+                "include": "**/**/templates/*",
+                "outDir": "dist"
+            }
+        ]
+    },
+    "projects": {
+        "app": {
+            "type": "application",
+            "root": "src",
+            "entryFile": "main",
+            "sourceRoot": "src"
+        },
+        "migration": {
+            "type": "application",
+            "root": "src",
+            "entryFile": "migration",
+            "sourceRoot": "src"
+        }
+    }
+}

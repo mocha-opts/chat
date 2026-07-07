@@ -1,0 +1,141 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Development Server",
+            "type": "shell",
+            "command": "pnpm start:dev",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Project",
+            "type": "shell",
+            "command": "pnpm build",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Format Code",
+            "type": "shell",
+            "command": "pnpm format",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Lint Project",
+            "type": "shell",
+            "command": "pnpm lint",
+            "group": "test",
+            "problemMatcher": ["$eslint-stylish"]
+        },
+        {
+            "label": "Lint and Fix",
+            "type": "shell",
+            "command": "pnpm lint:fix",
+            "group": "none",
+            "problemMatcher": ["$eslint-stylish"]
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "pnpm test",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Check Dead Code",
+            "type": "shell",
+            "command": "pnpm deadcode",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Spell Check",
+            "type": "shell",
+            "command": "pnpm spell",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Keys",
+            "type": "shell",
+            "command": "pnpm generate:keys",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Migration",
+            "type": "shell",
+            "command": "pnpm db:migrate",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Seed Database",
+            "type": "shell",
+            "command": "pnpm migration:seed",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Remove Database",
+            "type": "shell",
+            "command": "pnpm migration:remove",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Seed Template",
+            "type": "shell",
+            "command": "pnpm migration template-email-notification --type seed && pnpm migration template-termPolicy --type seed",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Remove Template",
+            "type": "shell",
+            "command": "pnpm migration template-email-notification --type remove && pnpm migration template-termPolicy --type remove",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Package Upgrade",
+            "type": "shell",
+            "command": "pnpm package:upgrade",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Package Check",
+            "type": "shell",
+            "command": "pnpm package:check",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker Compose Up",
+            "type": "shell",
+            "command": "docker-compose up -d",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker Compose Down",
+            "type": "shell",
+            "command": "docker-compose down",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean Project",
+            "type": "shell",
+            "command": "pnpm clean",
+            "group": "none",
+            "problemMatcher": []
+        }
+    ]
+}

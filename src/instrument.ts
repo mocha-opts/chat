@@ -1,0 +1,131 @@
+import 'dotenv/config';
+import * as Sentry from '@sentry/nestjs';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import appConfigFunction from '@configs/app.config';
+import loggerConfigFunction from '@configs/logger.config';
+import { EnumAppEnvironment } from '@app/enums/app.enum';
+import { LoggerExcludedRoutes } from '@common/logger/constants/logger.constant';
+
+const appConfigs = appConfigFunction();
+const loggerConfigs = loggerConfigFunction();
+
+function isExcludedUrl(url: string | undefined, patterns: string[]): boolean {
+    if (!url || !patterns.length) {
+        return false;
+    }
+
+    let pathname: string;
+    try {
+        pathname = new URL(url).pathname;
+    } catch {
+        pathname = url.split('?')[0].split('#')[0];
+    }
+
+    const normalizedPath = pathname.toLowerCase();
+
+    return patterns.some(pattern => {
+        if (!pattern) {
+            return false;
+        }
+
+        const normalizedPattern = pattern.toLowerCase();
+
+        if (normalizedPath === normalizedPattern) {
+            return true;
+        }
+
+        if (normalizedPattern.endsWith('*')) {
+            const base = normalizedPattern.slice(0, -1);
+            return base ? normalizedPath.startsWith(base) : true;
+        }
+
+        return false;
+    });
+}
+
+if (loggerConfigs.sentry.dsn) {
+    Sentry.init({
+        dsn: loggerConfigs.sentry.dsn,
+        debug: false,
+        environment: appConfigs.env,
+        release: appConfigs.version,
+        integrations: [nodeProfilingIntegration()],
+        tracesSampleRate:
+            appConfigs.env === EnumAppEnvironment.production ? 0.3 : 1.0,
+        profilesSampleRate:
+            appConfigs.env === EnumAppEnvironment.production ? 0.1 : 0.5,
+        normalizeDepth: 3,
+        maxValueLength: 1000,
+        attachStacktrace: true,
+        sendDefaultPii: false,
+        maxBreadcrumbs: 30,
+        beforeSend(event, hint) {
+            if (event.exception?.values) {
+                const exception = event.exception.values[0];
+                const isWorkerException = exception?.type === 'WorkerException';
+
+                if (
+                    isWorkerException &&
+                    exception.mechanism?.data?.fatal === false
+                ) {
+                    // Don't send non-fatal WorkerExceptions to Sentry
+                    return null;
+                }
+            }
+
+            if (event.request) {
+                // Filter out excluded routes
+                const url = event.request.url;
+
+                if (isExcludedUrl(url, LoggerExcludedRoutes)) {
+                    return null;
+                }
+            }
+
+            if (event.request && event.contexts && event.contexts.response) {
+                const statusCode = event.contexts.response.status_code;
+                // Only send events for errors (5xx status codes)
+                if (statusCode && statusCode < 500) {
+                    return null;
+                }
+            }
+
+            if (event.level === 'info' || event.level === 'debug') {
+                // Don't send info and debug level events
+                return null;
+            }
+
+            if (appConfigs.env !== EnumAppEnvironment.production && hint) {
+                event.extra = {
+                    ...event.extra,
+                    originalException: hint.originalException,
+                };
+            }
+
+            return event;
+        },
+        tracesSampler: samplingContext => {
+            const transaction = samplingContext?.transactionContext;
+            const transactionName = transaction?.name;
+
+            // Never sample excluded routes
+            if (
+                transactionName &&
+                isExcludedUrl(transactionName, LoggerExcludedRoutes)
+            ) {
+                return 0;
+            }
+
+            if (
+                appConfigs.env === EnumAppEnvironment.production &&
+                transaction?.data?.status === 'ok'
+            ) {
+                // Only sample 5% of successful transactions
+                return 0.05;
+            }
+
+            // Use normal sampling rate for errors or non-production
+            return appConfigs.env === EnumAppEnvironment.production ? 0.3 : 1.0;
+        },
+    });
+}

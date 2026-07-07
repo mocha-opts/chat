@@ -1,0 +1,99 @@
+# compiled output
+dist/
+node_modules/
+.warmup/
+generated/
+swagger.json
+/src/metadata.ts
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Tests
+/coverage
+/.nyc_output
+
+# Lint / format cache
+.eslintcache
+.prettiercache
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# pnpm
+.pnpm-store/
+pnpm-debug.log*
+
+# environment
+.env*
+!.env.example
+config.yaml
+config.yml
+!.github/ISSUE_TEMPLATE/config.yml
+
+# Runtime generated files
+keys/
+*.pem
+*.pub
+jwks.json
+
+# Temporary and cache files
+.cache/
+.temp/
+.tmp/
+temp/
+tmp/
+
+# Build and development artifacts
+.swc/
+.turbo/
+.parcel-cache/
+
+# AI Tools
+## Claude Code
+.claude/agent-memory/
+.claude/*.local.md
+.claude/settings.local.json
+.claude/worktrees/
+.claude/todos.json
+.claude/scheduled-tasks/
+docs/superpowers
+
+## Cursor
+.cursorignore
+.cursorindexingignore
+.cursor/
+
+## GitHub Copilot
+.copilot/
+
+## Windsurf
+.windsurfrules
+
+## AI generated files
+plan.md
