@@ -5,9 +5,6 @@ import {
     HealthIndicatorService,
 } from '@nestjs/terminus';
 
-/**
- * Reports MongoDB reachability as a Terminus health indicator.
- */
 @Injectable()
 export class HealthDatabaseIndicator {
     constructor(
@@ -15,14 +12,11 @@ export class HealthDatabaseIndicator {
         private readonly healthIndicatorService: HealthIndicatorService
     ) {}
 
-    /**
-     * Down when the `ping` command fails or throws.
-     */
     async isHealthy(key: string): Promise<HealthIndicatorResult> {
         const indicator = this.healthIndicatorService.check(key);
 
         try {
-            await this.databaseService.$runCommandRaw({ ping: 1 });
+            await this.databaseService.$queryRaw`SELECT 1`;
 
             return indicator.up();
         } catch (err: unknown) {

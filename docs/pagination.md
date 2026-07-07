@@ -5,6 +5,7 @@ This documentation explains the features and usage of the **Pagination Module** 
 ## Overview
 
 The Pagination module provides a comprehensive solution for handling paginated data throughout the application. It supports:
+
 - **Offset-based pagination**: Traditional page number and limit approach
 - **Cursor-based pagination**: Efficient traversal using cursor tokens
 - **Advanced filtering**: Enum, equality, date range, and custom filters
@@ -12,6 +13,7 @@ The Pagination module provides a comprehensive solution for handling paginated d
 - **Error handling**: Consistent error responses with detailed context
 
 Ordering support is split across two levels:
+
 - **HTTP query level**: `orderBy` uses `field:direction` format in a single query parameter (e.g., `name:asc`, `createdAt:desc`). Multiple entries can be sent as repeated params.
 - **Service level**: `orderBy` is always an array of order objects (`IPaginationOrderBy[]`)
 
@@ -25,7 +27,6 @@ The module uses a pipe-based architecture with factory functions for maximum fle
 - [Doc Documentation][ref-doc-doc]
 
 ## Table of Contents
-
 
 - [Overview](#overview)
 - [Related Documents](#related-documents)
@@ -85,22 +86,27 @@ async offset<TReturn, TArgsSelect = unknown, TArgsWhere = unknown>(
 ```
 
 **Type Parameters:**
+
 - `TReturn` — shape of each item in the returned `data` array
 - `TArgsSelect` — Prisma `select` type for the model (e.g. `Prisma.UserSelect`). Defaults to `unknown`
 - `TArgsWhere` — Prisma `where` type for the model (e.g. `Prisma.UserWhereInput`). Defaults to `unknown`
 
 **Parameters:**
+
 - `repository`: Repository instance implementing IPaginationRepository
 - `args`: Validated pagination parameters from pipe
 
 **`args.orderBy` Support:**
+
 - Always an array: `[{ createdAt: 'desc' }]`, `[{ createdAt: 'desc' }, { name: 'asc' }]`
 
 **Default Values:**
+
 - `orderBy`: `[{ createdAt: 'desc' }]` - Sort by creation date descending
 - If omitted, defaults to `PaginationDefaultOrderBy`
 
 **Returns:**
+
 ```typescript
 {
     type: 'offset',
@@ -128,23 +134,28 @@ async cursor<TReturn, TArgsSelect = unknown, TArgsWhere = unknown>(
 ```
 
 **Type Parameters:**
+
 - `TReturn` — shape of each item in the returned `data` array
 - `TArgsSelect` — Prisma `select` type for the model (e.g. `Prisma.UserSelect`). Defaults to `unknown`
 - `TArgsWhere` — Prisma `where` type for the model (e.g. `Prisma.UserWhereInput`). Defaults to `unknown`
 
 **Parameters:**
+
 - `repository`: Repository instance
 - `args`: Validated pagination parameters from pipe
 
 **`args.orderBy` Support:**
+
 - Always an array: `[{ createdAt: 'desc' }]`, `[{ createdAt: 'desc' }, { name: 'asc' }]`
 
 **Default Values:**
+
 - `orderBy`: `[{ createdAt: 'desc' }]` - Sort by creation date descending
 - If omitted, defaults to `PaginationDefaultOrderBy`
 - `cursorField`: `'id'` - Field used for cursor positioning
 
 **Cursor Validation:**
+
 - Cursor contains: cursor value, orderBy, and where conditions
 - If `orderBy` or `where` conditions change: throws `PaginationInvalidCursorPaginationParamsException` (422)
 - Client must request from beginning if conditions change
@@ -152,6 +163,7 @@ async cursor<TReturn, TArgsSelect = unknown, TArgsWhere = unknown>(
 - For array-based ordering, the array order must remain exactly the same between requests
 
 **Returns:**
+
 ```typescript
 {
     type: 'cursor',
@@ -166,6 +178,7 @@ async cursor<TReturn, TArgsSelect = unknown, TArgsWhere = unknown>(
 ### Input Validation (Pipes)
 
 **Architecture:**
+
 ```
 Client Request
     ↓
@@ -192,26 +205,31 @@ Service (Business Logic)
 Decorator for offset-based pagination with search and ordering.
 
 **Options:**
+
 - `defaultPerPage`: Items per page (default: 20, max: 100)
 - `availableSearch`: Array of searchable fields
 - `availableOrderBy`: Array of fields available for ordering
 
 **Default Behavior:**
+
 - If no `orderBy`: sorts by `createdAt: DESC`
 - Page defaults to 1
 - PerPage defaults to PaginationDefaultPerPage (20)
 
 **Public Query Contract:**
+
 - `orderBy` uses `field:direction` format (e.g., `name:asc`, `createdAt:desc`) in a single query parameter
 - Multiple fields can be sent as repeated params: `?orderBy=name:asc&orderBy=createdAt:desc`
 - `PaginationOrderPipe` parses this into an array of order objects (`[{ field: direction }]`)
 
 **Search Behavior:**
+
 - `PaginationSearchPipe` builds a Prisma `OR` condition across `availableSearch` fields.
 - Each field uses `Prisma.StringFilter` with `mode: 'insensitive'`, so search is case-insensitive.
 - Shape: `{ OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }] }`.
 
 **Usage:**
+
 ```typescript
 @PaginationOffsetQuery({
     availableSearch: ['name', 'email'],
@@ -221,6 +239,7 @@ pagination: IPaginationQueryOffsetParams
 ```
 
 **Transformed to:**
+
 ```typescript
 {
     limit: 20,           // from perPage
@@ -237,27 +256,32 @@ pagination: IPaginationQueryOffsetParams
 Decorator for cursor-based pagination.
 
 **Options:**
+
 - `defaultPerPage`: Items per page (default: 20, max: 100)
 - `cursorField`: Field for cursor (default: 'id')
 - `availableSearch`: Array of searchable fields
 - `availableOrderBy`: Array of fields available for ordering
 
 **Default Behavior:**
+
 - If no `orderBy`: sorts by `createdAt: DESC`
 - Cursor is optional (undefined = first page)
 - PerPage defaults to PaginationDefaultPerPage (20)
 
 **Public Query Contract:**
+
 - `orderBy` uses `field:direction` format (e.g., `name:asc`, `createdAt:desc`) in a single query parameter
 - Multiple fields can be sent as repeated params: `?orderBy=name:asc&orderBy=createdAt:desc`
 - `PaginationOrderPipe` parses this into an array of order objects (`[{ field: direction }]`)
 
 **Search Behavior:**
+
 - `PaginationSearchPipe` builds a Prisma `OR` condition across `availableSearch` fields.
 - Each field uses `Prisma.StringFilter` with `mode: 'insensitive'`, so search is case-insensitive.
 - Shape: `{ OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }] }`.
 
 **Usage:**
+
 ```typescript
 @PaginationCursorQuery({
     availableSearch: ['name', 'email'],
@@ -273,6 +297,7 @@ pagination: IPaginationQueryCursorParams
 Filters by comma-separated enum values using 'in' operator.
 
 **Factory Function:**
+
 ```typescript
 PaginationQueryFilterInEnum<T>(
     field: string,
@@ -282,11 +307,13 @@ PaginationQueryFilterInEnum<T>(
 ```
 
 **Parameters:**
+
 - `field`: Query parameter name
 - `defaultEnum`: Array of valid enum values
 - `options.customField`: Database field name (defaults to field)
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterInEnum(
     'status',
@@ -296,10 +323,12 @@ status?: Record<string, IPaginationIn>
 ```
 
 **Transforms:**
+
 - Query: `?status=ACTIVE,INACTIVE`
 - To: `{ status: { in: ['ACTIVE', 'INACTIVE'] } }`
 
 **Validation:**
+
 - Throws `PaginationFilterInvalidValueEnumException` (422) if value not in enum
 - Error code: `5021 (filterInvalidValue)`
 
@@ -308,6 +337,7 @@ status?: Record<string, IPaginationIn>
 Filters by comma-separated enum values using 'not in' operator.
 
 **Factory Function:**
+
 ```typescript
 PaginationQueryFilterNinEnum<T>(
     field: string,
@@ -317,6 +347,7 @@ PaginationQueryFilterNinEnum<T>(
 ```
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterNinEnum(
     'status',
@@ -326,6 +357,7 @@ status?: Record<string, IPaginationNin>
 ```
 
 **Transforms:**
+
 - Query: `?status=BANNED,INACTIVE`
 - To: `{ status: { notIn: ['BANNED', 'INACTIVE'] } }`
 
@@ -334,16 +366,19 @@ status?: Record<string, IPaginationNin>
 Filters by boolean value ('true'/'false').
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterEqualBoolean('isActive')
 isActive?: Record<string, IPaginationEqual>
 ```
 
 **Transforms:**
+
 - Query: `?isActive=true`
 - To: `{ isActive: { equals: true } }`
 
 **Validation:**
+
 - Accepts only 'true' or 'false'
 - Throws `PaginationFilterInvalidValueException` (422) for invalid boolean
 
@@ -352,16 +387,19 @@ isActive?: Record<string, IPaginationEqual>
 Filters by numeric value.
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterEqualNumber('age')
 age?: Record<string, IPaginationEqual>
 ```
 
 **Transforms:**
+
 - Query: `?age=25`
 - To: `{ age: { equals: 25 } }`
 
 **Validation:**
+
 - Parses as float
 - Throws `PaginationFilterInvalidValueException` (422) for non-numeric value
 
@@ -370,12 +408,14 @@ age?: Record<string, IPaginationEqual>
 Filters by string value.
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterEqualString('role')
 role?: Record<string, IPaginationEqual>
 ```
 
 **Transforms:**
+
 - Query: `?role=admin`
 - To: `{ role: { equals: 'admin' } }`
 
@@ -384,6 +424,7 @@ role?: Record<string, IPaginationEqual>
 Filters by inequality (not equal).
 
 **Factory Function:**
+
 ```typescript
 PaginationQueryFilterNotEqual<T>(
     field: string,
@@ -392,12 +433,14 @@ PaginationQueryFilterNotEqual<T>(
 ```
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterNotEqual('status')
 status?: Record<string, IPaginationNotEqual>
 ```
 
 **Transforms:**
+
 - Query: `?status=inactive`
 - To: `{ status: { not: 'inactive' } }`
 
@@ -408,6 +451,7 @@ status?: Record<string, IPaginationNotEqual>
 Filters by ISO date string with range operations.
 
 **Factory Function:**
+
 ```typescript
 PaginationQueryFilterDate(
     field: string,
@@ -416,6 +460,7 @@ PaginationQueryFilterDate(
 ```
 
 **`IPaginationQueryFilterDateOptions`:**
+
 ```typescript
 {
     customField?: string;
@@ -425,14 +470,16 @@ PaginationQueryFilterDate(
 ```
 
 **Parameters:**
+
 - `field`: Query parameter name
 - `options.type`:
-  - `EnumPaginationFilterDateBetweenType.start`: Greater than or equal (`gte`) — use for start date
-  - `EnumPaginationFilterDateBetweenType.end`: Less than or equal (`lte`) — use for end date
-  - Undefined: Equals — exact date match
+    - `EnumPaginationFilterDateBetweenType.start`: Greater than or equal (`gte`) — use for start date
+    - `EnumPaginationFilterDateBetweenType.end`: Less than or equal (`lte`) — use for end date
+    - Undefined: Equals — exact date match
 - `options.dayOf`: Day adjustment option (`EnumHelperDateDayOf`)
 
 **Usage:**
+
 ```typescript
 @PaginationQueryFilterDate('createdAt', {
     type: EnumPaginationFilterDateBetweenType.start
@@ -446,10 +493,12 @@ endDate?: Record<string, IPaginationDate>
 ```
 
 **Transforms:**
+
 - Query: `?startDate=2024-01-01`
 - To: `{ createdAt: { gte: new Date('2024-01-01T00:00:00Z') } }`
 
 **Validation:**
+
 - Accepts ISO format (YYYY-MM-DD, ISO 8601 timestamps)
 - Throws `PaginationFilterInvalidValueException` (422) for invalid ISO date
 
@@ -458,6 +507,7 @@ endDate?: Record<string, IPaginationDate>
 Ordering is **not** a standalone decorator. It is configured via the `availableOrderBy` option in `@PaginationOffsetQuery` or `@PaginationCursorQuery`. Internally, `PaginationOrderPipe` handles the validation and transformation.
 
 **Configuration:**
+
 ```typescript
 @PaginationOffsetQuery({
     availableOrderBy: ['createdAt', 'name', 'email']
@@ -466,24 +516,29 @@ pagination: IPaginationQueryOffsetParams
 ```
 
 **Default Behavior:**
+
 - If no `orderBy` query param is sent: falls back to `[{ createdAt: 'desc' }]`
 - If `availableOrderBy` is omitted: any `orderBy` value is ignored and `[{ createdAt: 'desc' }]` is used
 - If the field part of `orderBy` is not in `availableOrderBy`: throws `PaginationOrderByNotAllowedException` (422)
 - If the direction part of `orderBy` is not `asc` or `desc`: throws `PaginationOrderDirectionNotAllowedException` (422)
 
 **Query Parameters:**
+
 - `orderBy`: A `field:direction` string (e.g., `name:asc`). Repeat to sort by multiple fields.
 
 **Transforms:**
+
 - Query: `?orderBy=name:asc`
 - To: `[{ name: 'asc' }]`
 
 **Internal Service Support:**
+
 - Query helpers only produce a single order object
 - `PaginationService` also accepts manual multi-field ordering in internal code
 - Example: `[{ createdAt: 'desc' }, { name: 'asc' }]`
 
 **Validation:**
+
 - Field must be in allowed list
 - Invalid field throws error code: `5020 (orderByNotAllowed)`
 - Invalid direction throws error code: `5035 (orderDirectionNotAllowed)`
@@ -493,18 +548,21 @@ pagination: IPaginationQueryOffsetParams
 ### Offset-Based
 
 **Characteristics:**
+
 - Returns total count
 - Slower with large offsets
 - Predictable page numbers
 - Affected by inserts/deletes during pagination
 
 **Constraints:**
+
 - Max page: 20
 - Max perPage: 100
 - Min page: 1
 - Min perPage: 1
 
 **Response Example:**
+
 ```json
 {
     "type": "offset",
@@ -522,25 +580,29 @@ pagination: IPaginationQueryOffsetParams
 ### Cursor-Based
 
 **How It Works:**
+
 1. Cursor encodes: cursor value, orderBy, where conditions
 2. Cursor validates conditions match on each request
 3. If conditions change: throws `PaginationInvalidCursorPaginationParamsException` (client must restart)
 4. Prevents navigation with stale conditions
 
 **Characteristics:**
+
 - Cursor-based navigation (no page numbers)
 - Consistent performance (indexed cursor field)
 - Optional count (requests only if needed)
 - Safe for real-time data changes
-- MongoDB ObjectID timestamps prevent duplicates
+- Stable PostgreSQL sort keys prevent duplicates
 
 **Constraints:**
+
 - Max cursor length: 256 characters
-- Cursor format: URL-safe base64 (A-Za-z0-9_-)
+- Cursor format: URL-safe base64 (A-Za-z0-9\_-)
 - Max perPage: 100
 - Min perPage: 1
 
 **Response Example:**
+
 ```json
 {
     "type": "cursor",
@@ -560,17 +622,18 @@ return this.paginationService.offset(repository, {
     ...pagination,
     where: {
         ...where,
-        ...status,          // Adds: { in: [...] }
-        ...role,           // Adds: { equals: '...' }
-        ...country,        // Adds: { not: '...' }
-        deletedAt: null
-    }
+        ...status, // Adds: { in: [...] }
+        ...role, // Adds: { equals: '...' }
+        ...country, // Adds: { not: '...' }
+        deletedAt: null,
+    },
 });
 ```
 
 ### Enum Filters
 
 **In (inclusion):**
+
 ```typescript
 @PaginationQueryFilterInEnum('status', [ACTIVE, INACTIVE])
 status?: Record<string, IPaginationIn>
@@ -580,6 +643,7 @@ status?: Record<string, IPaginationIn>
 ```
 
 **Nin (exclusion):**
+
 ```typescript
 @PaginationQueryFilterNinEnum('status', [BANNED, DELETED])
 status?: Record<string, IPaginationNin>
@@ -591,6 +655,7 @@ status?: Record<string, IPaginationNin>
 ### Equality Filters
 
 **Boolean:**
+
 ```typescript
 @PaginationQueryFilterEqualBoolean('isActive')
 isActive?: Record<string, IPaginationEqual>
@@ -600,6 +665,7 @@ isActive?: Record<string, IPaginationEqual>
 ```
 
 **Number:**
+
 ```typescript
 @PaginationQueryFilterEqualNumber('age')
 age?: Record<string, IPaginationEqual>
@@ -609,6 +675,7 @@ age?: Record<string, IPaginationEqual>
 ```
 
 **String:**
+
 ```typescript
 @PaginationQueryFilterEqualString('role')
 role?: Record<string, IPaginationEqual>
@@ -618,6 +685,7 @@ role?: Record<string, IPaginationEqual>
 ```
 
 **Not Equal:**
+
 ```typescript
 @PaginationQueryFilterNotEqual('country')
 country?: Record<string, IPaginationNotEqual>
@@ -629,6 +697,7 @@ country?: Record<string, IPaginationNotEqual>
 ### Date Filters
 
 **Date Range:**
+
 ```typescript
 @PaginationQueryFilterDate('createdAt', {
     type: EnumPaginationFilterDateBetweenType.start
@@ -647,31 +716,33 @@ endDate?: Record<string, IPaginationDate>
 ## Ordering
 
 **Default Behavior:**
+
 - Field: `createdAt`
 - Direction: `desc` (descending)
 
 **HTTP Query Format:**
+
 - `orderBy` uses `field:direction` format in a single query parameter
 - Repeat the parameter to sort by multiple fields
 
 **Query Parameters:**
+
 ```
 ?orderBy=name:asc
 ?orderBy=name:asc&orderBy=createdAt:desc
 ```
 
 **Internal Service Format:**
+
 ```typescript
-orderBy: [
-    { createdAt: 'desc' },
-    { name: 'asc' }
-]
+orderBy: [{ createdAt: 'desc' }, { name: 'asc' }];
 ```
 
 All `orderBy` values passed to the service and stored in cursors are arrays. The single-element array `[{ createdAt: 'desc' }]` is the typical default.
 
 **Field Whitelist:**
 Must be specified via `availableOrderBy` in the query decorator to prevent injection:
+
 ```typescript
 @PaginationOffsetQuery({
     availableOrderBy: ['createdAt', 'name', 'email']
@@ -683,6 +754,7 @@ Must be specified via `availableOrderBy` in the query decorator to prevent injec
 ### Basic Offset Pagination
 
 **Controller:**
+
 ```typescript
 @Get('/users')
 @ResponsePaging('user.list')
@@ -698,20 +770,22 @@ async listUsers(
 ```
 
 **Service:**
+
 ```typescript
 async getListOffset(
     pagination: IPaginationQueryOffsetParams
 ): Promise<IResponsePagingReturn<UserListResponseDto>> {
-    const { data, ...others } = 
+    const { data, ...others } =
         await this.userRepository.findWithPaginationOffset(pagination);
-    
+
     const users = this.userUtil.mapList(data);
-    
+
     return { data: users, ...others };
 }
 ```
 
 **Repository:**
+
 ```typescript
 async findWithPaginationOffset(
     pagination: IPaginationQueryOffsetParams
@@ -731,6 +805,7 @@ async findWithPaginationOffset(
 ```
 
 **API Request:**
+
 ```
 GET /users?page=1&perPage=20&search=john&orderBy=name:asc
 ```
@@ -738,6 +813,7 @@ GET /users?page=1&perPage=20&search=john&orderBy=name:asc
 ### Cursor Pagination
 
 **Controller:**
+
 ```typescript
 @Get('/users')
 @ResponsePaging('user.list')
@@ -753,20 +829,22 @@ async listUsers(
 ```
 
 **Service:**
+
 ```typescript
 async getListCursor(
     pagination: IPaginationQueryCursorParams
 ): Promise<IPaginationCursorReturn<UserListResponseDto>> {
-    const { data, ...others } = 
+    const { data, ...others } =
         await this.userRepository.findWithPaginationCursor(pagination);
-    
+
     const users = this.userUtil.mapList(data);
-    
+
     return { data: users, ...others };
 }
 ```
 
 **Repository:**
+
 ```typescript
 async findWithPaginationCursor(
     pagination: IPaginationQueryCursorParams
@@ -786,6 +864,7 @@ async findWithPaginationCursor(
 ```
 
 **API Requests:**
+
 ```
 # First page
 GET /users?perPage=20&orderBy=name:asc
@@ -797,6 +876,7 @@ GET /users?cursor=eyJjdXJzb3I6IjEyMyIsIm9yZGVyQnkiOnsibmFtZSI6ImFzYyJ9fQ==&perPa
 ### With Filters
 
 **Controller:**
+
 ```typescript
 @Get('/users')
 @ResponsePaging('user.list')
@@ -831,6 +911,7 @@ async listUsers(
 ```
 
 **Service:**
+
 ```typescript
 async getListOffset(
     pagination: IPaginationQueryOffsetParams,
@@ -839,7 +920,7 @@ async getListOffset(
     isActive?: Record<string, IPaginationEqual>,
     startDate?: Record<string, IPaginationDate>
 ): Promise<IResponsePagingReturn<UserListResponseDto>> {
-    const { data, ...others } = 
+    const { data, ...others } =
         await this.userRepository.findWithPaginationOffset(
             pagination,
             status,
@@ -847,14 +928,15 @@ async getListOffset(
             isActive,
             startDate
         );
-    
+
     const users = this.userUtil.mapList(data);
-    
+
     return { data: users, ...others };
 }
 ```
 
 **Repository:**
+
 ```typescript
 async findWithPaginationOffset(
     { where, ...pagination }: IPaginationQueryOffsetParams,
@@ -882,6 +964,7 @@ async findWithPaginationOffset(
 ```
 
 **API Request:**
+
 ```
 GET /users?page=1&perPage=20&status=ACTIVE,INACTIVE&role=admin&isActive=true&createdAt=2024-01-01
 ```
@@ -889,6 +972,7 @@ GET /users?page=1&perPage=20&status=ACTIVE,INACTIVE&role=admin&isActive=true&cre
 ### Complete Example
 
 **Controller with all features:**
+
 ```typescript
 @ApiTags('modules.admin.user')
 @Controller({
@@ -903,18 +987,15 @@ export class UserAdminController {
     async list(
         @PaginationOffsetQuery({
             availableSearch: ['name', 'email'],
-            availableOrderBy: ['createdAt', 'email', 'name']
+            availableOrderBy: ['createdAt', 'email', 'name'],
         })
         pagination: IPaginationQueryOffsetParams,
-        @PaginationQueryFilterInEnum(
-            'status',
-            [EnumUserStatus.ACTIVE, EnumUserStatus.INACTIVE]
-        )
+        @PaginationQueryFilterInEnum('status', [
+            EnumUserStatus.ACTIVE,
+            EnumUserStatus.INACTIVE,
+        ])
         status?: Record<string, IPaginationIn>,
-        @PaginationQueryFilterNinEnum(
-            'blockedStatus',
-            [EnumUserStatus.BANNED]
-        )
+        @PaginationQueryFilterNinEnum('blockedStatus', [EnumUserStatus.BANNED])
         blockedStatus?: Record<string, IPaginationNin>,
         @PaginationQueryFilterEqualBoolean('isActive')
         isActive?: Record<string, IPaginationEqual>,
@@ -925,11 +1006,11 @@ export class UserAdminController {
         @PaginationQueryFilterNotEqual('country')
         country?: Record<string, IPaginationNotEqual>,
         @PaginationQueryFilterDate('createdAt', {
-            type: EnumPaginationFilterDateBetweenType.start
+            type: EnumPaginationFilterDateBetweenType.start,
         })
         startDate?: Record<string, IPaginationDate>,
         @PaginationQueryFilterDate('createdAt', {
-            type: EnumPaginationFilterDateBetweenType.end
+            type: EnumPaginationFilterDateBetweenType.end,
         })
         endDate?: Record<string, IPaginationDate>
     ) {
@@ -953,6 +1034,7 @@ export class UserAdminController {
 The Pagination module integrates with the [Doc module][ref-doc-doc] for automatic API documentation.
 
 **Example:**
+
 ```typescript
 @DocResponsePaging<UserListResponseDto>('user.list', {
     dto: UserListResponseDto,
@@ -972,6 +1054,7 @@ async list(
 ```
 
 The `@DocResponsePaging` decorator automatically:
+
 - Documents paginated response structure
 - Adds standard pagination query parameters
 - Documents search parameter when provided
@@ -996,18 +1079,18 @@ Pagination pipes are singletons (not request-scoped). After parsing query parame
 ### Performance Considerations
 
 **Offset Pagination:**
+
 - Use for small datasets (< 10,000 items)
 - Avoid large page numbers
 - Slower with large offsets (DB must skip rows)
 - Use when total count is important
 
 **Cursor Pagination:**
+
 - Better for large datasets
 - Consistent performance (indexed lookup)
 - Use for infinite scroll
 - Avoids N+1 count queries
-
-
 
 <!-- REFERENCES -->
 

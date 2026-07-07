@@ -1,5 +1,5 @@
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -9,7 +9,7 @@ generator client {
 }
 
 model ApiKey {
-  id       String         @id @default(auto()) @map("_id") @db.ObjectId
+  id       String         @id @default(uuid()) @db.Uuid
   type     EnumApiKeyType @default(default)
   name     String
   key      String
@@ -19,9 +19,9 @@ model ApiKey {
   endAt    DateTime?
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   @@unique(fields: [key])
   @@unique(fields: [hash])
@@ -31,16 +31,16 @@ model ApiKey {
 }
 
 model Role {
-  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  id          String       @id @default(uuid()) @db.Uuid
   name        String
   description String?
-  type        EnumRoleType  @default(user)
-  abilities   RoleAbility[]
+  type        EnumRoleType @default(user)
+  abilities   Json[]
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   users User[] @relation("UserRole")
 
@@ -50,7 +50,7 @@ model Role {
 }
 
 model Country {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(uuid()) @db.Uuid
   name       String
   alpha2Code String
   alpha3Code String
@@ -62,9 +62,9 @@ model Country {
   users         User[]             @relation("UserCountry")
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   @@unique(fields: [alpha2Code])
   @@unique(fields: [alpha3Code])
@@ -74,18 +74,18 @@ model Country {
 }
 
 model UserMobileNumber {
-  id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String    @db.ObjectId
-  countryId  String    @db.ObjectId
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  countryId  String    @db.Uuid
   phoneCode  String
   number     String
   isVerified Boolean   @default(false)
   verifiedAt DateTime?
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   country       Country        @relation("UserMobileNumberCountry", fields: [countryId], references: [id])
   user          User           @relation("UserMobileNumberUser", fields: [userId], references: [id])
@@ -97,13 +97,13 @@ model UserMobileNumber {
 }
 
 model User {
-  id              String             @id @default(auto()) @map("_id") @db.ObjectId
+  id              String             @id @default(uuid()) @db.Uuid
   name            String?
   username        String
   isVerified      Boolean            @default(false)
   verifiedAt      DateTime?
   email           String
-  roleId          String             @db.ObjectId
+  roleId          String             @db.Uuid
   password        String?
   passwordExpired DateTime?
   passwordCreated DateTime?
@@ -113,20 +113,20 @@ model User {
   signUpWith      EnumUserSignUpWith
   status          EnumUserStatus     @default(active)
   gender          EnumUserGender?
-  countryId       String             @db.ObjectId
+  countryId       String             @db.Uuid
   lastLoginAt     DateTime?
   lastIPAddress   String?
   lastLoginFrom   EnumUserLoginFrom?
   lastLoginWith   EnumUserLoginWith?
-  termPolicy      UserTermPolicy
-  photo           UserPhoto?
+  termPolicy      Json
+  photo           Json?
 
   createdAt DateTime  @default(now())
-  createdBy String?   @db.ObjectId
+  createdBy String?   @db.Uuid
   updatedAt DateTime  @updatedAt
-  updatedBy String?   @db.ObjectId
+  updatedBy String?   @db.Uuid
   deletedAt DateTime?
-  deletedBy String?   @db.ObjectId
+  deletedBy String?   @db.Uuid
 
   mobileNumbers           UserMobileNumber[]         @relation("UserMobileNumberUser")
   verifications           Verification[]             @relation("UserVerifications")
@@ -155,9 +155,9 @@ model User {
 }
 
 model Verification {
-  id             String               @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String               @db.ObjectId
-  mobileNumberId String?              @db.ObjectId
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String               @db.Uuid
+  mobileNumberId String?              @db.Uuid
   to             String
   type           EnumVerificationType
   token          String
@@ -167,7 +167,7 @@ model Verification {
   reference      String
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
 
   user         User              @relation("UserVerifications", fields: [userId], references: [id])
   mobileNumber UserMobileNumber? @relation("UserMobileNumberVerification", fields: [mobileNumberId], references: [id])
@@ -179,8 +179,8 @@ model Verification {
 }
 
 model PasswordHistory {
-  id        String                  @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String                  @db.ObjectId
+  id        String                  @id @default(uuid()) @db.Uuid
+  userId    String                  @db.Uuid
   password  String
   type      EnumPasswordHistoryType
   expiredAt DateTime
@@ -188,26 +188,26 @@ model PasswordHistory {
   user User @relation("UserPasswordHistories", fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
 
   @@index(fields: [userId, expiredAt(sort: Desc)])
   @@map("PasswordHistories")
 }
 
 model ActivityLog {
-  id          String                @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String                @db.ObjectId
+  id          String                @id @default(uuid()) @db.Uuid
+  userId      String                @db.Uuid
   action      EnumActivityLogAction
   ipAddress   String?
-  userAgent   UserAgent
+  userAgent   Json
   description String
-  geoLocation GeoLocation?
+  geoLocation Json?
   metadata    Json?
 
   user User @relation("UserActivityLogs", fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
 
   @@index(fields: [userId, createdAt(sort: Desc)])
   @@index(fields: [userId, action, createdAt(sort: Desc)])
@@ -215,26 +215,26 @@ model ActivityLog {
 }
 
 model Session {
-  id                String       @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String       @db.ObjectId
-  deviceOwnershipId String       @db.ObjectId
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  deviceOwnershipId String    @db.Uuid
   jti               String
   ipAddress         String?
-  userAgent         UserAgent
-  geoLocation       GeoLocation?
+  userAgent         Json
+  geoLocation       Json?
   expiredAt         DateTime
   revokedAt         DateTime?
-  isRevoked         Boolean      @default(false)
-  revokedById       String?      @db.ObjectId
+  isRevoked         Boolean   @default(false)
+  revokedById       String?   @db.Uuid
 
   revokedBy       User?           @relation("SessionRevokedByUser", fields: [revokedById], references: [id])
   user            User            @relation("UserSessions", fields: [userId], references: [id])
   deviceOwnership DeviceOwnership @relation("DeviceOwnershipSessions", fields: [deviceOwnershipId], references: [id])
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   @@unique(fields: [userId, jti])
   @@index(fields: [userId, expiredAt(sort: Desc), isRevoked])
@@ -245,7 +245,7 @@ model Session {
 }
 
 model Device {
-  id                   String                          @id @default(auto()) @map("_id") @db.ObjectId
+  id                   String                          @id @default(uuid()) @db.Uuid
   fingerprint          String
   name                 String?
   platform             EnumDevicePlatform
@@ -254,9 +254,9 @@ model Device {
   notificationProvider EnumDeviceNotificationProvider?
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   ownerships DeviceOwnership[] @relation("DeviceOwnershipDevice")
 
@@ -265,12 +265,12 @@ model Device {
 }
 
 model DeviceOwnership {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  deviceId     String    @db.ObjectId
-  userId       String    @db.ObjectId
+  id           String    @id @default(uuid()) @db.Uuid
+  deviceId     String    @db.Uuid
+  userId       String    @db.Uuid
   revokedAt    DateTime?
   isRevoked    Boolean   @default(false)
-  revokedById  String?   @db.ObjectId
+  revokedById  String?   @db.Uuid
   lastActiveAt DateTime  @default(now())
 
   biometricEnabled   Boolean            @default(false)
@@ -279,9 +279,9 @@ model DeviceOwnership {
   biometricEnabledAt DateTime?
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   revokedBy User?     @relation("DeviceOwnershipRevokedByUser", fields: [revokedById], references: [id])
   device    Device    @relation("DeviceOwnershipDevice", fields: [deviceId], references: [id])
@@ -296,8 +296,8 @@ model DeviceOwnership {
 }
 
 model TwoFactor {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String    @db.ObjectId
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
   secret        String?
   iv            String?
   backupCodes   String[]  @default([])
@@ -308,9 +308,9 @@ model TwoFactor {
   attempt       Int       @default(0)
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   user User @relation("UserTwoFactor", fields: [userId], references: [id])
 
@@ -319,17 +319,17 @@ model TwoFactor {
 }
 
 model TermPolicy {
-  id          String               @id @default(auto()) @map("_id") @db.ObjectId
+  id          String               @id @default(uuid()) @db.Uuid
   type        EnumTermPolicyType
-  contents    TermPolicyContent[]
+  contents    Json[]
   version     Int                  @default(1)
   status      EnumTermPolicyStatus @default(draft)
   publishedAt DateTime?
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   userAcceptances TermPolicyUserAcceptance[] @relation("TermPolicyUserAcceptanceTermPolicy")
 
@@ -339,16 +339,16 @@ model TermPolicy {
 }
 
 model TermPolicyUserAcceptance {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String   @db.ObjectId
-  termPolicyId String   @db.ObjectId
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  termPolicyId String   @db.Uuid
   acceptedAt   DateTime @default(now())
 
   user       User       @relation("TermPolicyUserAcceptanceUser", fields: [userId], references: [id])
   termPolicy TermPolicy @relation("TermPolicyUserAcceptanceTermPolicy", fields: [termPolicyId], references: [id])
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
 
   @@unique(fields: [userId, termPolicyId])
   @@index(fields: [termPolicyId, acceptedAt(sort: Desc)])
@@ -356,7 +356,7 @@ model TermPolicyUserAcceptance {
 }
 
 model FeatureFlag {
-  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  id             String  @id @default(uuid()) @db.Uuid
   key            String
   description    String
   isEnable       Boolean @default(true)
@@ -364,9 +364,9 @@ model FeatureFlag {
   metadata       Json?
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   @@unique(fields: [key])
   @@index(fields: [isEnable])
@@ -374,8 +374,8 @@ model FeatureFlag {
 }
 
 model ForgotPassword {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String    @db.ObjectId
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
   to        String
   token     String
   expiredAt DateTime
@@ -384,7 +384,7 @@ model ForgotPassword {
   reference String
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
 
   user User @relation("UserForgotPassword", fields: [userId], references: [id])
 
@@ -394,8 +394,8 @@ model ForgotPassword {
 }
 
 model Notification {
-  id       String                   @id @default(auto()) @map("_id") @db.ObjectId
-  userId   String                   @db.ObjectId
+  id       String                   @id @default(uuid()) @db.Uuid
+  userId   String                   @db.Uuid
   type     EnumNotificationType
   priority EnumNotificationPriority @default(normal)
   title    String
@@ -408,9 +408,9 @@ model Notification {
   deliveries NotificationDelivery[] @relation("NotificationDeliveries")
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   @@index(fields: [userId, isRead, createdAt(sort: Desc)])
   @@index(fields: [userId, type, createdAt(sort: Desc)])
@@ -419,8 +419,8 @@ model Notification {
 }
 
 model NotificationDelivery {
-  id             String                  @id @default(auto()) @map("_id") @db.ObjectId
-  notificationId String                  @db.ObjectId
+  id             String                  @id @default(uuid()) @db.Uuid
+  notificationId String                  @db.Uuid
   channel        EnumNotificationChannel
   sentAt         DateTime?
   processedAt    DateTime?
@@ -437,8 +437,8 @@ model NotificationDelivery {
 }
 
 model NotificationUserSetting {
-  id       String                  @id @default(auto()) @map("_id") @db.ObjectId
-  userId   String                  @db.ObjectId
+  id       String                  @id @default(uuid()) @db.Uuid
+  userId   String                  @db.Uuid
   channel  EnumNotificationChannel
   type     EnumNotificationType
   isActive Boolean                 @default(true)
@@ -446,91 +446,13 @@ model NotificationUserSetting {
   user User @relation("UserNotificationSettings", fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
-  createdBy String?  @db.ObjectId
+  createdBy String?  @db.Uuid
   updatedAt DateTime @updatedAt
-  updatedBy String?  @db.ObjectId
+  updatedBy String?  @db.Uuid
 
   @@unique(fields: [userId, channel, type])
   @@index(fields: [userId, isActive])
   @@map("NotificationUserSettings")
-}
-
-type UserTermPolicy {
-  termsOfService Boolean
-  privacy        Boolean
-  marketing      Boolean
-  cookies        Boolean
-}
-
-type RoleAbility {
-  action  String[]
-  subject String
-}
-
-type UserPhoto {
-  bucket       String
-  key          String
-  cdnUrl       String?
-  completedUrl String
-  mime         String
-  extension    String
-  access       String
-}
-
-type TermPolicyContent {
-  language     String
-  bucket       String
-  key          String
-  cdnUrl       String?
-  completedUrl String
-  mime         String
-  extension    String
-  access       String
-  size         Int
-}
-
-type UserAgentBrowser {
-  name    String?
-  version String?
-  major   String?
-  type    String?
-}
-
-type UserAgentCpu {
-  architecture String?
-}
-
-type UserAgentDevice {
-  type   String?
-  vendor String?
-  model  String?
-}
-
-type UserAgentEngine {
-  name    String?
-  version String?
-}
-
-type UserAgentOs {
-  name    String?
-  version String?
-}
-
-type UserAgent {
-  ua      String?
-  browser UserAgentBrowser?
-  cpu     UserAgentCpu?
-  device  UserAgentDevice?
-  engine  UserAgentEngine?
-  os      UserAgentOs?
-}
-
-type GeoLocation {
-  latitude  Float
-  longitude Float
-  country   String
-  region    String
-  city      String
 }
 
 enum EnumUserGender {

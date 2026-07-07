@@ -1,6 +1,6 @@
 import { PaginationCursorQuery } from '@common/pagination/decorators/pagination.decorator';
 import { IPaginationQueryCursorParams } from '@common/pagination/interfaces/pagination.interface';
-import { RequestIsValidObjectIdPipe } from '@common/request/pipes/request.is-valid-object-id.pipe';
+import { RequestIsValidUuidPipe } from '@common/request/pipes/request.is-valid-uuid.pipe';
 import { RequestRequiredPipe } from '@common/request/pipes/request.required.pipe';
 import {
     Response,
@@ -90,11 +90,7 @@ export class NotificationSharedController {
     @Patch('/update/read/:notificationId')
     async markAsRead(
         @AuthJwtPayload('userId') userId: string,
-        @Param(
-            'notificationId',
-            RequestRequiredPipe,
-            RequestIsValidObjectIdPipe
-        )
+        @Param('notificationId', RequestRequiredPipe, RequestIsValidUuidPipe)
         notificationId: string
     ): Promise<IResponseReturn<void>> {
         return this.notificationService.markAsRead(userId, notificationId);

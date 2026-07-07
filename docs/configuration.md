@@ -73,63 +73,73 @@ This configuration handles the core application settings including environment d
 #### Configuration Keys:
 
 **`name`** - Application name used throughout the system
+
 ```typescript
-name: string
+name: string;
 ```
 
 **`env`** - Current environment (development, production, staging, local)
+
 ```typescript
-env: EnumAppEnvironment
+env: EnumAppEnvironment;
 ```
 
 **`timezone`** - Default timezone for date operations
+
 ```typescript
-timezone: string
+timezone: string;
 ```
 
 **`version`** - Application version from package.json
+
 ```typescript
-version: string
+version: string;
 ```
 
 **`author`** - Author information from package.json
+
 ```typescript
 author: {
-  name: string;                   // Author name
-  email: string;                  // Author email
+    name: string; // Author name
+    email: string; // Author email
 }
 ```
 
 **`url`** - Repository URL from package.json
+
 ```typescript
-url: string
+url: string;
 ```
 
 **`globalPrefix`** - Global API prefix (default: '/api')
+
 ```typescript
-globalPrefix: string
+globalPrefix: string;
 ```
 
 **`http`** - HTTP server configuration
+
 ```typescript
 http: {
-  host: string;                   // Server host address
-  port: number;                   // Server port number
+    host: string; // Server host address
+    port: number; // Server port number
 }
 ```
 
 **`urlVersion`** - API versioning configuration
+
 ```typescript
 urlVersion: {
-  enable: boolean;                // Enable URL versioning
-  prefix: string;                 // Version prefix (default: 'v')
-  version: string;                // Default API version
+    enable: boolean; // Enable URL versioning
+    prefix: string; // Version prefix (default: 'v')
+    version: string; // Default API version
 }
 ```
 
 **`encryptionSecretKey`** - AES-256 encryption secret key
+
 ```typescript
-encryptionSecretKey: string     // Secret key used to derive AES-256 encryption key for sensitive data
+encryptionSecretKey: string; // Secret key used to derive AES-256 encryption key for sensitive data
 ```
 
 ### Auth Configuration
@@ -144,68 +154,72 @@ This configuration manages JWT authentication settings including token configura
 #### Configuration Keys:
 
 **`jwt`** - JWT authentication configuration
+
 ```typescript
 jwt: {
-  accessToken: {
-    jwksUri: string;              // JWKS URI for access token
-    kid: string;                  // Key ID for access token
-    algorithm: Algorithm;         // JWT algorithm (ES256, ES512, etc.)
-    privateKey: string;           // Private key for token signing
-    publicKey: string;            // Public key for token verification
-    expirationTimeInSeconds: number; // Token expiration in seconds
-  };
-  refreshToken: {
-    jwksUri: string;              // JWKS URI for refresh token
-    kid: string;                  // Key ID for refresh token
-    algorithm: Algorithm;         // JWT algorithm
-    privateKey: string;           // Private key for token signing
-    publicKey: string;            // Public key for token verification
-    expirationTimeInSeconds: number; // Token expiration in seconds
-  };
-  audience: string;               // JWT audience claim
-  issuer: string;                 // JWT issuer claim
-  header: string;                 // HTTP header for JWT (default: 'Authorization')
-  prefix: string;                 // Token prefix (default: 'Bearer')
+    accessToken: {
+        jwksUri: string; // JWKS URI for access token
+        kid: string; // Key ID for access token
+        algorithm: Algorithm; // JWT algorithm (ES256, ES512, etc.)
+        privateKey: string; // Private key for token signing
+        publicKey: string; // Public key for token verification
+        expirationTimeInSeconds: number; // Token expiration in seconds
+    }
+    refreshToken: {
+        jwksUri: string; // JWKS URI for refresh token
+        kid: string; // Key ID for refresh token
+        algorithm: Algorithm; // JWT algorithm
+        privateKey: string; // Private key for token signing
+        publicKey: string; // Public key for token verification
+        expirationTimeInSeconds: number; // Token expiration in seconds
+    }
+    audience: string; // JWT audience claim
+    issuer: string; // JWT issuer claim
+    header: string; // HTTP header for JWT (default: 'Authorization')
+    prefix: string; // Token prefix (default: 'Bearer')
 }
 ```
 
 **`password`** - Password policy configuration
+
 ```typescript
 password: {
-  attempt: boolean;               // Enable login attempt tracking
-  maxAttempt: number;             // Maximum failed login attempts
-  saltLength: number;             // Salt length for password hashing
-  expiredInSeconds: number;       // Password expiration time
-  expiredTemporaryInSeconds: number; // Temporary password expiration
-  periodInSeconds: number;        // Password renewal period
+    attempt: boolean; // Enable login attempt tracking
+    maxAttempt: number; // Maximum failed login attempts
+    saltLength: number; // Salt length for password hashing
+    expiredInSeconds: number; // Password expiration time
+    expiredTemporaryInSeconds: number; // Temporary password expiration
+    periodInSeconds: number; // Password renewal period
 }
 ```
 
 **`twoFactor`** - Two-factor authentication configuration
+
 ```typescript
 twoFactor: {
-  issuer: string;                 // Issuer name for OTP (TOTP)
-  strategy: string;               // OTP strategy (default: 'totp')
-  algorithm: string;              // Hash algorithm for OTP (default: 'sha1')
-  digits: number;                 // Number of digits in OTP
-  periodInSeconds: number;        // Time period in seconds for OTP validity
-  window: number;                 // Allowed window for OTP validation
-  secretLength: number;           // Length of OTP secret
-  challengeTtlInMs: number;       // Challenge TTL in milliseconds
-  cachePrefixKey: string;         // Cache prefix for two-factor data
-  backupCodes: {
-    count: number;                // Number of backup codes
-    length: number;               // Length of each backup code
-  };
-  maxAttempt: number;             // Maximum failed two-factor attempts before lock
-  lockAttemptDuration: number;    // Lock duration after max failed attempts (milliseconds)
-  encryption: {
-    key: string;                  // Encryption key for backup codes
-  };
+    issuer: string; // Issuer name for OTP (TOTP)
+    strategy: string; // OTP strategy (default: 'totp')
+    algorithm: string; // Hash algorithm for OTP (default: 'sha1')
+    digits: number; // Number of digits in OTP
+    periodInSeconds: number; // Time period in seconds for OTP validity
+    window: number; // Allowed window for OTP validation
+    secretLength: number; // Length of OTP secret
+    challengeTtlInMs: number; // Challenge TTL in milliseconds
+    cachePrefixKey: string; // Cache prefix for two-factor data
+    backupCodes: {
+        count: number; // Number of backup codes
+        length: number; // Length of each backup code
+    }
+    maxAttempt: number; // Maximum failed two-factor attempts before lock
+    lockAttemptDuration: number; // Lock duration after max failed attempts (milliseconds)
+    encryption: {
+        key: string; // Encryption key for backup codes
+    }
 }
 ```
 
 **`apple`** - Apple OAuth configuration
+
 ```typescript
 apple: {
   header: string;                 // HTTP header for Apple auth
@@ -216,6 +230,7 @@ apple: {
 ```
 
 **`google`** - Google OAuth configuration
+
 ```typescript
 google: {
   header: string;                 // HTTP header for Google auth
@@ -226,10 +241,11 @@ google: {
 ```
 
 **`xApiKey`** - API Key authentication configuration
+
 ```typescript
 xApiKey: {
-  header: string;                 // HTTP header for API key
-  cachePrefixKey: string;         // Cache prefix for API keys
+    header: string; // HTTP header for API key
+    cachePrefixKey: string; // Cache prefix for API keys
 }
 ```
 
@@ -238,20 +254,22 @@ xApiKey: {
 **File**: `src/configs/database.config.ts`
 **Interface**: `IConfigDatabase`
 
-This configuration manages database connection settings for MongoDB.
+This configuration manages database connection settings for PostgreSQL.
 
 > **Environment Variables**: See [Environment Documentation](environment.md) for detailed environment variable configuration.
 
 #### Configuration Keys:
 
 **`url`** - Database connection string
+
 ```typescript
-url: string                     // MongoDB connection URL
+url: string; // PostgreSQL connection URL
 ```
 
 **`debug`** - Database debug mode
+
 ```typescript
-debug: boolean                  // Enable/disable database query logging
+debug: boolean; // Enable/disable database query logging
 ```
 
 ### AWS Configuration
@@ -266,6 +284,7 @@ This configuration handles AWS service integration including S3 and SES services
 #### Configuration Keys:
 
 **`s3`** - S3 service configuration
+
 ```typescript
 s3: {
   multipartExpiredInDay: number;  // Multipart upload expiration in days (default: 3)
@@ -297,6 +316,7 @@ s3: {
 
 > [!NOTE]
 > **IAM Configuration Notes**:
+>
 > - The `iam.key` and `iam.secret` are used for standard IAM user credentials
 > - The `iam.arn` is used for IAM role assumption (recommended for production)
 > - When using IAM roles, temporary credentials are automatically rotated
@@ -304,6 +324,7 @@ s3: {
 > - Base URLs are auto-generated as `https://{bucket}.s3.{region}.amazonaws.com`
 
 **`ses`** - Simple Email Service configuration
+
 ```typescript
 ses: {
   iam: {
@@ -317,6 +338,7 @@ ses: {
 
 > [!NOTE]
 > **SES IAM Configuration**:
+>
 > - Similar to S3, SES supports both standard credentials and IAM role-based access
 > - Using IAM roles (`iam.arn`) is recommended for better security
 > - Credentials are used for sending emails and managing SES operations
@@ -333,36 +355,43 @@ This configuration manages logging settings using Pino logger with customizable 
 #### Configuration Keys:
 
 **`enable`** - Enable/disable logging
+
 ```typescript
-enable: boolean                 // Turn logging on/off
+enable: boolean; // Turn logging on/off
 ```
 
 **`level`** - Log level configuration
+
 ```typescript
-level: string                   // Log level: error, warn, info, verbose, debug, silly
+level: string; // Log level: error, warn, info, verbose, debug, silly
 ```
 
 **`intoFile`** - File logging option
+
 ```typescript
-intoFile: boolean               // Whether to write logs to files
+intoFile: boolean; // Whether to write logs to files
 ```
 
 **`filePath`** - Log file directory
+
 ```typescript
-filePath: string                // Directory path for log files
+filePath: string; // Directory path for log files
 ```
 
 **`auto`** - Automatic logging features
+
 ```typescript
-auto: boolean                   // Enable automatic request/response logging
+auto: boolean; // Enable automatic request/response logging
 ```
 
 **`prettier`** - Log formatting option
+
 ```typescript
-prettier: boolean               // Format logs for better readability
+prettier: boolean; // Format logs for better readability
 ```
 
 **`sentry`** - Sentry integration configuration
+
 ```typescript
 sentry: {
   dsn?: string;                 // Sentry DSN for error tracking
@@ -382,29 +411,32 @@ This configuration handles HTTP request settings including body size limits, COR
 #### Configuration Keys:
 
 **`body`** - Request body size limits
+
 ```typescript
 body: {
-  json: {
-    limitInBytes: number;         // Maximum JSON request size (default: 500kb)
-  };
-  text: {
-    limitInBytes: number;         // Maximum text request size (default: 1mb)
-  };
-  urlencoded: {
-    limitInBytes: number;         // Maximum URL-encoded request size (default: 1mb)
-  };
-  applicationOctetStream: {
-    limitInBytes: number;         // Maximum octet-stream size (from FileSizeInBytes constant)
-  };
+    json: {
+        limitInBytes: number; // Maximum JSON request size (default: 500kb)
+    }
+    text: {
+        limitInBytes: number; // Maximum text request size (default: 1mb)
+    }
+    urlencoded: {
+        limitInBytes: number; // Maximum URL-encoded request size (default: 1mb)
+    }
+    applicationOctetStream: {
+        limitInBytes: number; // Maximum octet-stream size (from FileSizeInBytes constant)
+    }
 }
 ```
 
 **`timeoutInMs`** - Request timeout setting
+
 ```typescript
-timeoutInMs: number             // Request timeout in milliseconds (default: 30000ms)
+timeoutInMs: number; // Request timeout in milliseconds (default: 30000ms)
 ```
 
 **`cors`** - CORS configuration
+
 ```typescript
 cors: {
   allowedMethod: string[];        // Allowed HTTP methods (GET, DELETE, PUT, PATCH, POST, HEAD, OPTIONS)
@@ -415,6 +447,7 @@ cors: {
 
 > [!NOTE]
 > **CORS Configuration Notes**:
+>
 > - `allowedOrigin` is populated from `CORS_ALLOWED_ORIGIN` environment variable or configuration
 > - Multiple origins can be specified using comma separation (converted to array)
 > - **Subdomain wildcards** are supported (e.g., `*.example.com` matches `api.example.com` and `example.com`)
@@ -424,10 +457,11 @@ cors: {
 > - Default headers include standard headers plus custom headers like `x-api-key`, `x-timezone`, `x-request-id`, etc.
 
 **`throttle`** - Rate limiting configuration
+
 ```typescript
 throttle: {
-  ttlInMs: number;                // Time window in milliseconds (default: 60000ms / 60s)
-  limit: number;                  // Maximum requests per time window (default: 100)
+    ttlInMs: number; // Time window in milliseconds (default: 60000ms / 60s)
+    limit: number; // Maximum requests per time window (default: 100)
 }
 ```
 
@@ -443,19 +477,21 @@ This configuration manages Redis connection settings for caching and queue opera
 #### Configuration Keys:
 
 **`cache`** - Cache Redis configuration
+
 ```typescript
 cache: {
-  url: string;                    // Redis URL for caching
-  namespace: string;              // Cache namespace prefix
-  ttlInMs: number;                // Cache TTL in milliseconds
+    url: string; // Redis URL for caching
+    namespace: string; // Cache namespace prefix
+    ttlInMs: number; // Cache TTL in milliseconds
 }
 ```
 
 **`queue`** - Queue Redis configuration
+
 ```typescript
 queue: {
-  url: string;                    // Redis URL for queues
-  namespace: string;              // Queue namespace prefix
+    url: string; // Redis URL for queues
+    namespace: string; // Queue namespace prefix
 }
 ```
 
@@ -469,21 +505,25 @@ This configuration handles user-related settings including username patterns and
 #### Configuration Keys:
 
 **`usernamePrefix`** - Username generation prefix
+
 ```typescript
-usernamePrefix: string          // Prefix for auto-generated usernames (default: 'user')
+usernamePrefix: string; // Prefix for auto-generated usernames (default: 'user')
 ```
 
 **`usernamePattern`** - Username validation pattern
+
 ```typescript
-usernamePattern: RegExp         // Regex pattern for valid usernames
+usernamePattern: RegExp; // Regex pattern for valid usernames
 ```
 
 **`uploadPhotoProfilePath`** - User profile photo upload path template
+
 ```typescript
-uploadPhotoProfilePath: string  // Path template for user profile photo uploads
+uploadPhotoProfilePath: string; // Path template for user profile photo uploads
 ```
 
 **`default`** - Default role and country assigned to new users
+
 ```typescript
 default: {
   role: string;                 // Default role name (default: 'user')
@@ -492,7 +532,6 @@ default: {
 ```
 
 ### Documentation Configuration
-
 
 **File**: `src/configs/doc.config.ts`
 **Interface**: `IConfigDoc`
@@ -504,18 +543,21 @@ This configuration manages API documentation settings for Swagger/OpenAPI.
 #### Configuration Keys:
 
 **`name`** - Documentation title
+
 ```typescript
-name: string                    // API documentation title
+name: string; // API documentation title
 ```
 
 **`prefix`** - Documentation URL prefix
+
 ```typescript
-prefix: string                  // URL prefix for API documentation (default: '/docs')
+prefix: string; // URL prefix for API documentation (default: '/docs')
 ```
 
 **`version`** - Static Swagger version
+
 ```typescript
-version: string                 // Static version for Swagger documentation (default: '3.1.0')
+version: string; // Static version for Swagger documentation (default: '3.1.0')
 ```
 
 ### Message Configuration
@@ -530,13 +572,15 @@ This configuration handles application messaging and internationalization settin
 #### Configuration Keys:
 
 **`availableLanguage`** - Supported languages
+
 ```typescript
 availableLanguage: string[]     // List of supported language codes
 ```
 
 **`language`** - Default language
+
 ```typescript
-language: string                // Default application language
+language: string; // Default application language
 ```
 
 ### Email Configuration
@@ -551,23 +595,27 @@ This configuration manages default email addresses for system communications. Em
 #### Configuration Keys:
 
 **`noreply`** - No-reply email address
+
 ```typescript
-noreply: string                 // No-reply email address for system emails
+noreply: string; // No-reply email address for system emails
 ```
 
 **`support`** - Support email address
+
 ```typescript
-support: string                 // Support/contact email address
+support: string; // Support/contact email address
 ```
 
 **`admin`** - Admin email address
+
 ```typescript
-admin: string                   // Administrator email address
+admin: string; // Administrator email address
 ```
 
 **`batchSize`** - Email batch size
+
 ```typescript
-batchSize: number               // Maximum number of emails per batch (default: 100)
+batchSize: number; // Maximum number of emails per batch (default: 100)
 ```
 
 ### Verification Configuration
@@ -580,35 +628,41 @@ This configuration handles user verification processes including email verificat
 #### Configuration Keys:
 
 **`expiredInMinutes`** - Verification expiration time
+
 ```typescript
-expiredInMinutes: number        // Verification expiration time in minutes
+expiredInMinutes: number; // Verification expiration time in minutes
 ```
 
 **`otpLength`** - OTP code length
+
 ```typescript
-otpLength: number               // Length of OTP verification code
+otpLength: number; // Length of OTP verification code
 ```
 
 **`tokenLength`** - Verification token length
+
 ```typescript
-tokenLength: number             // Length of verification token
+tokenLength: number; // Length of verification token
 ```
 
 **`linkBaseUrl`** - Verification link base URL
+
 ```typescript
-linkBaseUrl: string             // Base URL for verification links
+linkBaseUrl: string; // Base URL for verification links
 ```
 
 **`resendInMinutes`** - Resend cooldown period
+
 ```typescript
-resendInMinutes: number         // Minimum time between resend attempts
+resendInMinutes: number; // Minimum time between resend attempts
 ```
 
 **`reference`** - Verification reference configuration
+
 ```typescript
 reference: {
-  prefix: string;               // Prefix for verification references
-  length: number;               // Length of verification reference ID
+    prefix: string; // Prefix for verification references
+    length: number; // Length of verification reference ID
 }
 ```
 
@@ -622,30 +676,35 @@ This configuration manages password reset functionality and security policies.
 #### Configuration Keys:
 
 **`expiredInMinutes`** - Reset link expiration
+
 ```typescript
-expiredInMinutes: number        // Password reset expiration in minutes
+expiredInMinutes: number; // Password reset expiration in minutes
 ```
 
 **`tokenLength`** - Reset token length
+
 ```typescript
-tokenLength: number             // Length of password reset token
+tokenLength: number; // Length of password reset token
 ```
 
 **`linkBaseUrl`** - Reset link base URL
+
 ```typescript
-linkBaseUrl: string             // Base URL for password reset links
+linkBaseUrl: string; // Base URL for password reset links
 ```
 
 **`resendInMinutes`** - Resend cooldown period
+
 ```typescript
-resendInMinutes: number         // Minimum time between resend attempts
+resendInMinutes: number; // Minimum time between resend attempts
 ```
 
 **`reference`** - Reset reference configuration
+
 ```typescript
 reference: {
-  prefix: string;               // Prefix for reset references
-  length: number;               // Length of reset reference ID
+    prefix: string; // Prefix for reset references
+    length: number; // Length of reset reference ID
 }
 ```
 
@@ -661,13 +720,15 @@ This configuration handles home page and organization information.
 #### Configuration Keys:
 
 **`name`** - Organization/application name
+
 ```typescript
-name: string                    // Display name for organization/application
+name: string; // Display name for organization/application
 ```
 
 **`url`** - Organization/home URL
+
 ```typescript
-url: string                     // URL for organization/home page
+url: string; // URL for organization/home page
 ```
 
 ### Session Configuration
@@ -680,8 +741,9 @@ This configuration manages user session key patterns for Redis storage.
 #### Configuration Keys:
 
 **`keyPattern`** - Session key pattern
+
 ```typescript
-keyPattern: string              // Redis key pattern for user sessions
+keyPattern: string; // Redis key pattern for user sessions
 ```
 
 ### Term Policy Configuration
@@ -694,13 +756,15 @@ This configuration handles terms of service and privacy policy file management.
 #### Configuration Keys:
 
 **`uploadContentPath`** - Upload path pattern for policy content
+
 ```typescript
-uploadContentPath: string       // Path pattern for uploading policy content files
+uploadContentPath: string; // Path pattern for uploading policy content files
 ```
 
 **`contentPublicPath`** - Public path for policy content
+
 ```typescript
-contentPublicPath: string       // Public path for accessing policy content
+contentPublicPath: string; // Public path for accessing policy content
 ```
 
 ### Feature Flag Configuration
@@ -713,13 +777,15 @@ This configuration manages feature flag caching settings.
 #### Configuration Keys:
 
 **`cachePrefixKey`** - Cache prefix for feature flags
+
 ```typescript
-cachePrefixKey: string          // Redis cache prefix for feature flag data
+cachePrefixKey: string; // Redis cache prefix for feature flag data
 ```
 
 **`cacheTtlMs`** - Cache TTL for feature flags
+
 ```typescript
-cacheTtlMs: number              // Cache TTL in milliseconds for feature flag data
+cacheTtlMs: number; // Cache TTL in milliseconds for feature flag data
 ```
 
 ### Response Configuration
@@ -732,13 +798,15 @@ This configuration handles API response caching and file-export settings.
 #### Configuration Keys:
 
 **`cachePrefix`** - Cache prefix for API responses
+
 ```typescript
-cachePrefix: string             // Cache prefix for API response data
+cachePrefix: string; // Cache prefix for API response data
 ```
 
 **`filenameExportPattern`** - Default filename pattern for file exports (`ResponseFileInterceptor`); `{timestamp}` / `{extension}` placeholders are replaced at runtime
+
 ```typescript
-filenameExportPattern: string   // e.g. 'export-{timestamp}.{extension}'
+filenameExportPattern: string; // e.g. 'export-{timestamp}.{extension}'
 ```
 
 ### Firebase Configuration
@@ -753,23 +821,25 @@ This configuration manages Firebase integration settings for push notification d
 #### Configuration Keys:
 
 **`projectId`** - Firebase project ID
+
 ```typescript
 projectId?: string              // Firebase project ID from Firebase console
 ```
 
 **`clientEmail`** - Firebase service account email
+
 ```typescript
 clientEmail?: string            // Firebase service account client email
 ```
 
 **`privateKey`** - Firebase service account private key
+
 ```typescript
 privateKey?: string             // Service account private key (PEM); escaped `\n` sequences are converted to real newlines at load
 ```
 
 > [!NOTE]
 > All Firebase config fields are optional. They are required only when push notification features are enabled. The `FirebaseConfig` is registered in `src/configs/index.ts` alongside other config modules.
-
 
 <!-- REFERENCES -->
 

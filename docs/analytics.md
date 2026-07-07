@@ -6,7 +6,7 @@
 
 This document explains how to calculate all analytics metrics available in this project, grouped by module and ordered by business priority within each section.
 
-All queries are written as **MongoDB aggregation pipelines** targeting the Prisma-mapped collection names. All timestamps are stored as UTC.
+The query examples in this document are legacy design notes and must be rewritten as PostgreSQL SQL or Prisma queries before implementation. All timestamps are stored as UTC.
 
 ---
 
@@ -37,26 +37,30 @@ All queries are written as **MongoDB aggregation pipelines** targeting the Prism
 $$\text{registrations}_{period} = \text{COUNT}(users\ WHERE\ signUpAt \in [start, end])$$
 
 **Aggregation:**
+
 ```js
 db.Users.aggregate([
-  {
-    $match: {
-      signUpAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
-      deletedAt: null,
+    {
+        $match: {
+            signUpAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+            deletedAt: null,
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$signUpAt" },
-        month: { $month: "$signUpAt" },
-        day:   { $dayOfMonth: "$signUpAt" }, // remove for weekly/monthly
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$signUpAt' },
+                month: { $month: '$signUpAt' },
+                day: { $dayOfMonth: '$signUpAt' }, // remove for weekly/monthly
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-])
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+]);
 ```
 
 ---
@@ -71,16 +75,17 @@ db.Users.aggregate([
 $$\text{churn rate} = \frac{\text{COUNT}(deletedAt \in [start, end])}{\text{COUNT}(signUpAt \leq end)} \times 100$$
 
 **Aggregation:**
+
 ```js
 // Step 1: deleted in period
 db.Users.countDocuments({
-  deletedAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
-})
+    deletedAt: { $gte: ISODate('2026-01-01'), $lt: ISODate('2026-02-01') },
+});
 
 // Step 2: total registered up to end of period
 db.Users.countDocuments({
-  signUpAt: { $lt: ISODate("2026-02-01") },
-})
+    signUpAt: { $lt: ISODate('2026-02-01') },
+});
 
 // churn rate (%) = (step1 / step2) * 100
 ```
@@ -99,27 +104,30 @@ $$\text{blocked}_{period} = \text{COUNT}(ActivityLogs\ WHERE\ action = 'userBloc
 ```js
 // Trend: blocks per day
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    "userBlocked",
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            action: 'userBlocked',
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-])
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+]);
 
 // Current snapshot: total blocked users
-db.Users.countDocuments({ status: "blocked" })
+db.Users.countDocuments({ status: 'blocked' });
 ```
 
 ---
@@ -134,26 +142,29 @@ db.Users.countDocuments({ status: "blocked" })
 $$\text{share}_{method} = \frac{\text{COUNT}(signUpWith = method)}{\text{COUNT(all users)}} \times 100$$
 
 **Aggregation:**
+
 ```js
 db.Users.aggregate([
-  { $match: { deletedAt: null } },
-  { $group: { _id: "$signUpWith", count: { $sum: 1 } } },
-  {
-    $group: {
-      _id:     null,
-      total:   { $sum: "$count" },
-      methods: { $push: { method: "$_id", count: "$count" } },
+    { $match: { deletedAt: null } },
+    { $group: { _id: '$signUpWith', count: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: '$count' },
+            methods: { $push: { method: '$_id', count: '$count' } },
+        },
     },
-  },
-  { $unwind: "$methods" },
-  {
-    $project: {
-      method:  "$methods.method",
-      count:   "$methods.count",
-      percent: { $multiply: [{ $divide: ["$methods.count", "$total"] }, 100] },
+    { $unwind: '$methods' },
+    {
+        $project: {
+            method: '$methods.method',
+            count: '$methods.count',
+            percent: {
+                $multiply: [{ $divide: ['$methods.count', '$total'] }, 100],
+            },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -180,32 +191,35 @@ $$\text{verification rate} = \frac{\text{COUNT}(isVerified = true)}{\text{COUNT(
 $$\text{avg time-to-verify} = \text{AVG}(verifiedAt - signUpAt)\ \text{(in hours)}$$
 
 **Aggregation:**
+
 ```js
 db.Users.aggregate([
-  { $match: { deletedAt: null } },
-  {
-    $group: {
-      _id:         null,
-      total:       { $sum: 1 },
-      verified:    { $sum: { $cond: ["$isVerified", 1, 0] } },
-      avgVerifyMs: {
-        $avg: {
-          $cond: [
-            { $and: ["$isVerified", "$verifiedAt"] },
-            { $subtract: ["$verifiedAt", "$signUpAt"] },
-            null,
-          ],
+    { $match: { deletedAt: null } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            verified: { $sum: { $cond: ['$isVerified', 1, 0] } },
+            avgVerifyMs: {
+                $avg: {
+                    $cond: [
+                        { $and: ['$isVerified', '$verifiedAt'] },
+                        { $subtract: ['$verifiedAt', '$signUpAt'] },
+                        null,
+                    ],
+                },
+            },
         },
-      },
     },
-  },
-  {
-    $project: {
-      verificationRate: { $multiply: [{ $divide: ["$verified", "$total"] }, 100] },
-      avgVerifyHours:   { $divide: ["$avgVerifyMs", 3600000] },
+    {
+        $project: {
+            verificationRate: {
+                $multiply: [{ $divide: ['$verified', '$total'] }, 100],
+            },
+            avgVerifyHours: { $divide: ['$avgVerifyMs', 3600000] },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -221,60 +235,64 @@ $$\text{mobile verification rate} = \frac{\text{COUNT}(isVerified = true)}{\text
 
 ```js
 db.UserMobiles.aggregate([
-  {
-    $group: {
-      _id:         null,
-      total:       { $sum: 1 },
-      verified:    { $sum: { $cond: ["$isVerified", 1, 0] } },
-      avgVerifyMs: {
-        $avg: {
-          $cond: [
-            { $and: ["$isVerified", "$verifiedAt"] },
-            { $subtract: ["$verifiedAt", "$createdAt"] },
-            null,
-          ],
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            verified: { $sum: { $cond: ['$isVerified', 1, 0] } },
+            avgVerifyMs: {
+                $avg: {
+                    $cond: [
+                        { $and: ['$isVerified', '$verifiedAt'] },
+                        { $subtract: ['$verifiedAt', '$createdAt'] },
+                        null,
+                    ],
+                },
+            },
         },
-      },
     },
-  },
-  {
-    $project: {
-      verificationRate: { $multiply: [{ $divide: ["$verified", "$total"] }, 100] },
-      avgVerifyHours:   { $divide: ["$avgVerifyMs", 3600000] },
-      total:    1,
-      verified: 1,
+    {
+        $project: {
+            verificationRate: {
+                $multiply: [{ $divide: ['$verified', '$total'] }, 100],
+            },
+            avgVerifyHours: { $divide: ['$avgVerifyMs', 3600000] },
+            total: 1,
+            verified: 1,
+        },
     },
-  },
-])
+]);
 
 // Breakdown: verified mobile numbers per country
 db.UserMobiles.aggregate([
-  {
-    $group: {
-      _id:      "$countryId",
-      total:    { $sum: 1 },
-      verified: { $sum: { $cond: ["$isVerified", 1, 0] } },
+    {
+        $group: {
+            _id: '$countryId',
+            total: { $sum: 1 },
+            verified: { $sum: { $cond: ['$isVerified', 1, 0] } },
+        },
     },
-  },
-  {
-    $lookup: {
-      from:         "Countries",
-      localField:   "_id",
-      foreignField: "_id",
-      as:           "country",
+    {
+        $lookup: {
+            from: 'Countries',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'country',
+        },
     },
-  },
-  { $unwind: "$country" },
-  {
-    $project: {
-      country:          "$country.name",
-      total:            1,
-      verified:         1,
-      verificationRate: { $multiply: [{ $divide: ["$verified", "$total"] }, 100] },
+    { $unwind: '$country' },
+    {
+        $project: {
+            country: '$country.name',
+            total: 1,
+            verified: 1,
+            verificationRate: {
+                $multiply: [{ $divide: ['$verified', '$total'] }, 100],
+            },
+        },
     },
-  },
-  { $sort: { total: -1 } },
-])
+    { $sort: { total: -1 } },
+]);
 ```
 
 ---
@@ -286,9 +304,7 @@ db.UserMobiles.aggregate([
 **Source:** `Users.status` (`EnumUserStatus`: `active`, `inactive`, `blocked`)
 
 ```js
-db.Users.aggregate([
-  { $group: { _id: "$status", count: { $sum: 1 } } },
-])
+db.Users.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
 ```
 
 ---
@@ -301,19 +317,19 @@ db.Users.aggregate([
 
 ```js
 db.Users.aggregate([
-  { $match: { deletedAt: null } },
-  {
-    $lookup: {
-      from:         "Countries",
-      localField:   "countryId",
-      foreignField: "_id",
-      as:           "country",
+    { $match: { deletedAt: null } },
+    {
+        $lookup: {
+            from: 'Countries',
+            localField: 'countryId',
+            foreignField: '_id',
+            as: 'country',
+        },
     },
-  },
-  { $unwind: "$country" },
-  { $group: { _id: "$country.name", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $unwind: '$country' },
+    { $group: { _id: '$country.name', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -344,24 +360,33 @@ $$\text{logins}_{day} = \text{COUNT}(ActivityLogs\ WHERE\ action \in loginAction
 
 ```js
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    { $in: ["userLoginCredential", "userLoginGoogle", "userLoginApple"] },
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            action: {
+                $in: [
+                    'userLoginCredential',
+                    'userLoginGoogle',
+                    'userLoginApple',
+                ],
+            },
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-])
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+]);
 ```
 
 ---
@@ -379,43 +404,52 @@ $$\text{locked users} = \text{COUNT}(passwordAttempt \geq maxAttempt)$$
 const MAX_ATTEMPT = 5; // from auth.config.ts
 
 db.Users.aggregate([
-  { $match: { deletedAt: null } },
-  {
-    $group: {
-      _id:         null,
-      total:       { $sum: 1 },
-      locked:      { $sum: { $cond: [{ $gte: ["$passwordAttempt", MAX_ATTEMPT] }, 1, 0] } },
-      attemptDist: { $push: "$passwordAttempt" },
+    { $match: { deletedAt: null } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            locked: {
+                $sum: {
+                    $cond: [{ $gte: ['$passwordAttempt', MAX_ATTEMPT] }, 1, 0],
+                },
+            },
+            attemptDist: { $push: '$passwordAttempt' },
+        },
     },
-  },
-  {
-    $project: {
-      lockoutRate: { $multiply: [{ $divide: ["$locked", "$total"] }, 100] },
-      locked:      1,
-      total:       1,
+    {
+        $project: {
+            lockoutRate: {
+                $multiply: [{ $divide: ['$locked', '$total'] }, 100],
+            },
+            locked: 1,
+            total: 1,
+        },
     },
-  },
-])
+]);
 
 // Trend: lockouts reached per day
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    "userReachMaxPasswordAttempt",
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            action: 'userReachMaxPasswordAttempt',
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -434,25 +468,28 @@ $$\text{revocation rate} = \frac{\text{COUNT}(isRevoked = true\ AND\ revokedAt \
 
 ```js
 db.Sessions.aggregate([
-  {
-    $match: {
-      revokedAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            revokedAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $project: {
-      isAdminRevoke: { $ne: ["$userId", "$revokedById"] },
+    {
+        $project: {
+            isAdminRevoke: { $ne: ['$userId', '$revokedById'] },
+        },
     },
-  },
-  {
-    $group: {
-      _id:          null,
-      total:        { $sum: 1 },
-      userRevoked:  { $sum: { $cond: ["$isAdminRevoke", 0, 1] } },
-      adminRevoked: { $sum: { $cond: ["$isAdminRevoke", 1, 0] } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            userRevoked: { $sum: { $cond: ['$isAdminRevoke', 0, 1] } },
+            adminRevoked: { $sum: { $cond: ['$isAdminRevoke', 1, 0] } },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -465,15 +502,24 @@ db.Sessions.aggregate([
 
 ```js
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    { $in: ["userLoginCredential", "userLoginGoogle", "userLoginApple"] },
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            action: {
+                $in: [
+                    'userLoginCredential',
+                    'userLoginGoogle',
+                    'userLoginApple',
+                ],
+            },
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  { $group: { _id: "$action", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $group: { _id: '$action', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -486,10 +532,10 @@ db.ActivityLogs.aggregate([
 
 ```js
 db.Users.aggregate([
-  { $match: { deletedAt: null, lastLoginFrom: { $ne: null } } },
-  { $group: { _id: "$lastLoginFrom", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $match: { deletedAt: null, lastLoginFrom: { $ne: null } } },
+    { $group: { _id: '$lastLoginFrom', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 > For historical breakdown, use `ActivityLogs.metadata` if login source is logged there.
@@ -509,25 +555,26 @@ $$\text{sessions per user} = \text{COUNT}(Sessions\ WHERE\ isRevoked = false\ AN
 const now = new Date();
 
 db.Sessions.aggregate([
-  {
-    $match: {
-      isRevoked: false,
-      expiredAt: { $gt: now },
+    {
+        $match: {
+            isRevoked: false,
+            expiredAt: { $gt: now },
+        },
     },
-  },
-  { $group: { _id: "$userId", sessionCount: { $sum: 1 } } },
-  {
-    $group: {
-      _id:  null,
-      avg:  { $avg: "$sessionCount" },
-      max:  { $max: "$sessionCount" },
-      dist: { $push: "$sessionCount" },
+    { $group: { _id: '$userId', sessionCount: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            avg: { $avg: '$sessionCount' },
+            max: { $max: '$sessionCount' },
+            dist: { $push: '$sessionCount' },
+        },
     },
-  },
-])
+]);
 ```
 
-For percentiles (p50, p90) — use `$percentile` operator (MongoDB 7.0+):
+For percentiles (p50, p90), use PostgreSQL percentile functions or calculate percentiles in the application layer after fetching the distribution:
+
 ```js
 { $group: {
     _id: null,
@@ -546,11 +593,11 @@ For percentiles (p50, p90) — use `$percentile` operator (MongoDB 7.0+):
 
 ```js
 db.Sessions.aggregate([
-  { $match: { "geoLocation": { $ne: null } } },
-  { $group: { _id: "$geoLocation.country", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-  { $limit: 20 },
-])
+    { $match: { geoLocation: { $ne: null } } },
+    { $group: { _id: '$geoLocation.country', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 20 },
+]);
 ```
 
 ---
@@ -564,17 +611,17 @@ db.Sessions.aggregate([
 ```js
 // Browser breakdown
 db.Sessions.aggregate([
-  { $match: { "userAgent.browser.name": { $ne: null } } },
-  { $group: { _id: "$userAgent.browser.name", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $match: { 'userAgent.browser.name': { $ne: null } } },
+    { $group: { _id: '$userAgent.browser.name', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 
 // OS breakdown
 db.Sessions.aggregate([
-  { $match: { "userAgent.os.name": { $ne: null } } },
-  { $group: { _id: "$userAgent.os.name", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $match: { 'userAgent.os.name': { $ne: null } } },
+    { $group: { _id: '$userAgent.os.name', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -597,68 +644,89 @@ const now = new Date();
 
 // Funnel breakdown per type
 db.Verifications.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
-    },
-  },
-  {
-    $group: {
-      _id:     "$type",
-      total:   { $sum: 1 },
-      used:    { $sum: { $cond: ["$isUsed", 1, 0] } },
-      expired: {
-        $sum: {
-          $cond: [
-            { $and: [{ $eq: ["$isUsed", false] }, { $lt: ["$expiredAt", now] }] },
-            1, 0,
-          ],
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
         },
-      },
-      avgVerifyMs: {
-        $avg: {
-          $cond: [
-            "$isUsed",
-            { $subtract: ["$verifiedAt", "$createdAt"] },
-            null,
-          ],
+    },
+    {
+        $group: {
+            _id: '$type',
+            total: { $sum: 1 },
+            used: { $sum: { $cond: ['$isUsed', 1, 0] } },
+            expired: {
+                $sum: {
+                    $cond: [
+                        {
+                            $and: [
+                                { $eq: ['$isUsed', false] },
+                                { $lt: ['$expiredAt', now] },
+                            ],
+                        },
+                        1,
+                        0,
+                    ],
+                },
+            },
+            avgVerifyMs: {
+                $avg: {
+                    $cond: [
+                        '$isUsed',
+                        { $subtract: ['$verifiedAt', '$createdAt'] },
+                        null,
+                    ],
+                },
+            },
         },
-      },
     },
-  },
-  {
-    $project: {
-      type:           "$_id",
-      total:          1,
-      used:           1,
-      expired:        1,
-      conversionRate: { $multiply: [{ $divide: ["$used", "$total"] }, 100] },
-      expiryRate:     { $multiply: [{ $divide: ["$expired", "$total"] }, 100] },
-      avgVerifyMinutes: { $divide: ["$avgVerifyMs", 60000] },
+    {
+        $project: {
+            type: '$_id',
+            total: 1,
+            used: 1,
+            expired: 1,
+            conversionRate: {
+                $multiply: [{ $divide: ['$used', '$total'] }, 100],
+            },
+            expiryRate: {
+                $multiply: [{ $divide: ['$expired', '$total'] }, 100],
+            },
+            avgVerifyMinutes: { $divide: ['$avgVerifyMs', 60000] },
+        },
     },
-  },
-])
+]);
 
 // Users who requested verification multiple times without completing
 // (indicates re-send loop — UX or deliverability problem)
 db.Verifications.aggregate([
-  {
-    $match: {
-      isUsed:    false,
-      expiredAt: { $lt: now },
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            isUsed: false,
+            expiredAt: { $lt: now },
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  { $group: { _id: { userId: "$userId", type: "$type" }, count: { $sum: 1 } } },
-  { $match: { count: { $gte: 2 } } }, // requested > once without success
-  {
-    $group: {
-      _id:          "$_id.type",
-      affectedUsers:{ $sum: 1 },
-      avgResends:   { $avg: "$count" },
+    {
+        $group: {
+            _id: { userId: '$userId', type: '$type' },
+            count: { $sum: 1 },
+        },
     },
-  },
-])
+    { $match: { count: { $gte: 2 } } }, // requested > once without success
+    {
+        $group: {
+            _id: '$_id.type',
+            affectedUsers: { $sum: 1 },
+            avgResends: { $avg: '$count' },
+        },
+    },
+]);
 ```
 
 ---
@@ -678,66 +746,73 @@ $$\text{expired users} = \text{COUNT}(passwordExpired \leq now\ AND\ deletedAt =
 const now = new Date();
 
 db.Users.aggregate([
-  {
-    $match: {
-      deletedAt: null,
-      status:    "active",
-      password:  { $ne: null }, // credential users only
-    },
-  },
-  {
-    $group: {
-      _id:          null,
-      total:        { $sum: 1 },
-      expired:      {
-        $sum: {
-          $cond: [
-            { $and: [
-              { $ne: ["$passwordExpired", null] },
-              { $lte: ["$passwordExpired", now] },
-            ]},
-            1, 0,
-          ],
+    {
+        $match: {
+            deletedAt: null,
+            status: 'active',
+            password: { $ne: null }, // credential users only
         },
-      },
-      neverSet: { $sum: { $cond: [{ $eq: ["$passwordCreated", null] }, 1, 0] } },
     },
-  },
-  {
-    $project: {
-      total:          1,
-      expired:        1,
-      neverSet:       1,
-      expiryRate:     { $multiply: [{ $divide: ["$expired", "$total"] }, 100] },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            expired: {
+                $sum: {
+                    $cond: [
+                        {
+                            $and: [
+                                { $ne: ['$passwordExpired', null] },
+                                { $lte: ['$passwordExpired', now] },
+                            ],
+                        },
+                        1,
+                        0,
+                    ],
+                },
+            },
+            neverSet: {
+                $sum: { $cond: [{ $eq: ['$passwordCreated', null] }, 1, 0] },
+            },
+        },
     },
-  },
-])
+    {
+        $project: {
+            total: 1,
+            expired: 1,
+            neverSet: 1,
+            expiryRate: {
+                $multiply: [{ $divide: ['$expired', '$total'] }, 100],
+            },
+        },
+    },
+]);
 
 // Breakdown by how long ago password expired (aging buckets)
 db.Users.aggregate([
-  {
-    $match: {
-      deletedAt:       null,
-      status:          "active",
-      passwordExpired: { $ne: null, $lte: now },
+    {
+        $match: {
+            deletedAt: null,
+            status: 'active',
+            passwordExpired: { $ne: null, $lte: now },
+        },
     },
-  },
-  {
-    $project: {
-      daysExpired: {
-        $divide: [{ $subtract: [now, "$passwordExpired"] }, 86400000],
-      },
+    {
+        $project: {
+            daysExpired: {
+                $divide: [{ $subtract: [now, '$passwordExpired'] }, 86400000],
+            },
+        },
     },
-  },
-  {
-    $bucket: {
-      groupBy:    "$daysExpired",
-      boundaries: [0, 7, 30, 90, 180, 365],
-      default:    "365+",
-      output:     { count: { $sum: 1 } },
+    {
+        $bucket: {
+            groupBy: '$daysExpired',
+            boundaries: [0, 7, 30, 90, 180, 365],
+            default: '365+',
+            output: { count: { $sum: 1 } },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -752,24 +827,27 @@ Types: `signUp`, `forgot`, `admin`, `profile`
 
 ```js
 db.PasswordHistories.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        type:  "$type",
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                type: '$type',
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-])
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+]);
 ```
 
 ---
@@ -785,36 +863,41 @@ $$\text{conversion rate} = \frac{\text{COUNT}(isUsed = true\ AND\ resetAt \in [s
 
 ```js
 db.ForgotPasswords.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
-    },
-  },
-  {
-    $group: {
-      _id:        null,
-      total:      { $sum: 1 },
-      converted:  { $sum: { $cond: ["$isUsed", 1, 0] } },
-      avgResetMs: {
-        $avg: {
-          $cond: [
-            "$isUsed",
-            { $subtract: ["$resetAt", "$createdAt"] },
-            null,
-          ],
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
         },
-      },
     },
-  },
-  {
-    $project: {
-      conversionRate:  { $multiply: [{ $divide: ["$converted", "$total"] }, 100] },
-      avgResetMinutes: { $divide: ["$avgResetMs", 60000] },
-      total:     1,
-      converted: 1,
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            converted: { $sum: { $cond: ['$isUsed', 1, 0] } },
+            avgResetMs: {
+                $avg: {
+                    $cond: [
+                        '$isUsed',
+                        { $subtract: ['$resetAt', '$createdAt'] },
+                        null,
+                    ],
+                },
+            },
+        },
     },
-  },
-])
+    {
+        $project: {
+            conversionRate: {
+                $multiply: [{ $divide: ['$converted', '$total'] }, 100],
+            },
+            avgResetMinutes: { $divide: ['$avgResetMs', 60000] },
+            total: 1,
+            converted: 1,
+        },
+    },
+]);
 ```
 
 ---
@@ -827,23 +910,26 @@ db.ForgotPasswords.aggregate([
 
 ```js
 db.PasswordHistories.aggregate([
-  {
-    $match: {
-      type:      "admin",
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            type: 'admin',
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -861,23 +947,25 @@ $$\text{2FA adoption} = \frac{\text{COUNT}(enabled = true)}{\text{COUNT(active u
 
 ```js
 db.TwoFactors.aggregate([
-  {
-    $group: {
-      _id:     null,
-      total:   { $sum: 1 },
-      enabled: { $sum: { $cond: ["$enabled", 1, 0] } },
-      requiredSetup: { $sum: { $cond: ["$requiredSetup", 1, 0] } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            enabled: { $sum: { $cond: ['$enabled', 1, 0] } },
+            requiredSetup: { $sum: { $cond: ['$requiredSetup', 1, 0] } },
+        },
     },
-  },
-  {
-    $project: {
-      adoptionRate:       { $multiply: [{ $divide: ["$enabled", "$total"] }, 100] },
-      requiredSetupCount: "$requiredSetup",
-      total:   1,
-      enabled: 1,
+    {
+        $project: {
+            adoptionRate: {
+                $multiply: [{ $divide: ['$enabled', '$total'] }, 100],
+            },
+            requiredSetupCount: '$requiredSetup',
+            total: 1,
+            enabled: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -890,23 +978,26 @@ db.TwoFactors.aggregate([
 
 ```js
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    "adminUserResetTwoFactor",
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            action: 'adminUserResetTwoFactor',
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -921,44 +1012,50 @@ db.ActivityLogs.aggregate([
 
 ```js
 db.Devices.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:     { $year: "$createdAt" },
-        month:    { $month: "$createdAt" },
-        day:      { $dayOfMonth: "$createdAt" },
-        platform: "$platform",
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+                platform: '$platform',
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-])
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+]);
 
 // Total new devices per period (all platforms combined)
 db.Devices.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-])
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+]);
 ```
 
 ---
@@ -971,23 +1068,25 @@ db.Devices.aggregate([
 
 ```js
 db.Devices.aggregate([
-  { $group: { _id: "$platform", count: { $sum: 1 } } },
-  {
-    $group: {
-      _id:       null,
-      total:     { $sum: "$count" },
-      platforms: { $push: { platform: "$_id", count: "$count" } },
+    { $group: { _id: '$platform', count: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: '$count' },
+            platforms: { $push: { platform: '$_id', count: '$count' } },
+        },
     },
-  },
-  { $unwind: "$platforms" },
-  {
-    $project: {
-      platform: "$platforms.platform",
-      count:    "$platforms.count",
-      percent:  { $multiply: [{ $divide: ["$platforms.count", "$total"] }, 100] },
+    { $unwind: '$platforms' },
+    {
+        $project: {
+            platform: '$platforms.platform',
+            count: '$platforms.count',
+            percent: {
+                $multiply: [{ $divide: ['$platforms.count', '$total'] }, 100],
+            },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1000,40 +1099,42 @@ db.Devices.aggregate([
 
 ```js
 db.Devices.aggregate([
-  {
-    $match: {
-      notificationProvider: { $ne: null },
+    {
+        $match: {
+            notificationProvider: { $ne: null },
+        },
     },
-  },
-  { $group: { _id: "$notificationProvider", count: { $sum: 1 } } },
-  {
-    $group: {
-      _id:       null,
-      total:     { $sum: "$count" },
-      providers: { $push: { provider: "$_id", count: "$count" } },
+    { $group: { _id: '$notificationProvider', count: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: '$count' },
+            providers: { $push: { provider: '$_id', count: '$count' } },
+        },
     },
-  },
-  { $unwind: "$providers" },
-  {
-    $project: {
-      provider: "$providers.provider",
-      count:    "$providers.count",
-      percent:  { $multiply: [{ $divide: ["$providers.count", "$total"] }, 100] },
+    { $unwind: '$providers' },
+    {
+        $project: {
+            provider: '$providers.provider',
+            count: '$providers.count',
+            percent: {
+                $multiply: [{ $divide: ['$providers.count', '$total'] }, 100],
+            },
+        },
     },
-  },
-])
+]);
 
 // Cross-check: provider vs platform (should align — fcm=android, apns=ios)
 db.Devices.aggregate([
-  { $match: { notificationProvider: { $ne: null } } },
-  {
-    $group: {
-      _id:   { platform: "$platform", provider: "$notificationProvider" },
-      count: { $sum: 1 },
+    { $match: { notificationProvider: { $ne: null } } },
+    {
+        $group: {
+            _id: { platform: '$platform', provider: '$notificationProvider' },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { count: -1 } },
-])
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -1049,21 +1150,25 @@ $$\text{token rate} = \frac{\text{COUNT}(notificationToken \neq null)}{\text{COU
 
 ```js
 db.Devices.aggregate([
-  {
-    $group: {
-      _id:       null,
-      total:     { $sum: 1 },
-      withToken: { $sum: { $cond: [{ $ne: ["$notificationToken", null] }, 1, 0] } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            withToken: {
+                $sum: { $cond: [{ $ne: ['$notificationToken', null] }, 1, 0] },
+            },
+        },
     },
-  },
-  {
-    $project: {
-      tokenRate: { $multiply: [{ $divide: ["$withToken", "$total"] }, 100] },
-      total:     1,
-      withToken: 1,
+    {
+        $project: {
+            tokenRate: {
+                $multiply: [{ $divide: ['$withToken', '$total'] }, 100],
+            },
+            total: 1,
+            withToken: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1076,23 +1181,26 @@ db.Devices.aggregate([
 
 ```js
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    "userDeviceRefresh",
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            action: 'userDeviceRefresh',
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id: {
-        year:  { $year: "$createdAt" },
-        month: { $month: "$createdAt" },
-        day:   { $dayOfMonth: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: {
+                year: { $year: '$createdAt' },
+                month: { $month: '$createdAt' },
+                day: { $dayOfMonth: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1108,38 +1216,43 @@ const now = new Date();
 
 // Active sessions per device-user pair (DeviceOwnership)
 db.Sessions.aggregate([
-  {
-    $match: {
-      isRevoked: false,
-      expiredAt: { $gt: now },
+    {
+        $match: {
+            isRevoked: false,
+            expiredAt: { $gt: now },
+        },
     },
-  },
-  { $group: { _id: "$deviceOwnershipId", sessionCount: { $sum: 1 } } },
-  {
-    $group: {
-      _id:    null,
-      avg:    { $avg: "$sessionCount" },
-      stdDev: { $stdDevPop: "$sessionCount" },
-      all:    { $push: { deviceOwnershipId: "$_id", sessionCount: "$sessionCount" } },
+    { $group: { _id: '$deviceOwnershipId', sessionCount: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            avg: { $avg: '$sessionCount' },
+            stdDev: { $stdDevPop: '$sessionCount' },
+            all: {
+                $push: {
+                    deviceOwnershipId: '$_id',
+                    sessionCount: '$sessionCount',
+                },
+            },
+        },
     },
-  },
-  { $unwind: "$all" },
-  {
-    $project: {
-      deviceOwnershipId: "$all.deviceOwnershipId",
-      sessionCount:     "$all.sessionCount",
-      zScore: {
-        $divide: [
-          { $subtract: ["$all.sessionCount", "$avg"] },
-          "$stdDev",
-        ],
-      },
+    { $unwind: '$all' },
+    {
+        $project: {
+            deviceOwnershipId: '$all.deviceOwnershipId',
+            sessionCount: '$all.sessionCount',
+            zScore: {
+                $divide: [
+                    { $subtract: ['$all.sessionCount', '$avg'] },
+                    '$stdDev',
+                ],
+            },
+        },
     },
-  },
-  // Flag devices with z-score > 3 (more than 3 standard deviations above mean)
-  { $match: { zScore: { $gt: 3 } } },
-  { $sort: { sessionCount: -1 } },
-])
+    // Flag devices with z-score > 3 (more than 3 standard deviations above mean)
+    { $match: { zScore: { $gt: 3 } } },
+    { $sort: { sessionCount: -1 } },
+]);
 ```
 
 ---
@@ -1152,17 +1265,29 @@ db.Sessions.aggregate([
 
 ```js
 db.Devices.aggregate([
-  { $group: { _id: "$userId", deviceCount: { $sum: 1 } } },
-  {
-    $group: {
-      _id: null,
-      avg: { $avg: "$deviceCount" },
-      max: { $max: "$deviceCount" },
-      p50: { $percentile: { input: "$deviceCount", p: [0.5], method: "approximate" } },
-      p90: { $percentile: { input: "$deviceCount", p: [0.9], method: "approximate" } },
+    { $group: { _id: '$userId', deviceCount: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            avg: { $avg: '$deviceCount' },
+            max: { $max: '$deviceCount' },
+            p50: {
+                $percentile: {
+                    input: '$deviceCount',
+                    p: [0.5],
+                    method: 'approximate',
+                },
+            },
+            p90: {
+                $percentile: {
+                    input: '$deviceCount',
+                    p: [0.9],
+                    method: 'approximate',
+                },
+            },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1180,21 +1305,25 @@ $$\text{inactive devices} = \text{COUNT}(lastActiveAt < now - 30\ days)$$
 const threshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
 db.Devices.aggregate([
-  {
-    $group: {
-      _id:      null,
-      total:    { $sum: 1 },
-      inactive: { $sum: { $cond: [{ $lt: ["$lastActiveAt", threshold] }, 1, 0] } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: 1 },
+            inactive: {
+                $sum: { $cond: [{ $lt: ['$lastActiveAt', threshold] }, 1, 0] },
+            },
+        },
     },
-  },
-  {
-    $project: {
-      inactiveRate: { $multiply: [{ $divide: ["$inactive", "$total"] }, 100] },
-      total:    1,
-      inactive: 1,
+    {
+        $project: {
+            inactiveRate: {
+                $multiply: [{ $divide: ['$inactive', '$total'] }, 100],
+            },
+            total: 1,
+            inactive: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1212,23 +1341,25 @@ $$\text{success rate}_{channel} = \frac{\text{COUNT}(sentAt \neq null\ AND\ chan
 
 ```js
 db.NotificationDeliveries.aggregate([
-  { $match: { processedAt: { $ne: null } } },
-  {
-    $group: {
-      _id:       "$channel",
-      processed: { $sum: 1 },
-      sent:      { $sum: { $cond: [{ $ne: ["$sentAt", null] }, 1, 0] } },
+    { $match: { processedAt: { $ne: null } } },
+    {
+        $group: {
+            _id: '$channel',
+            processed: { $sum: 1 },
+            sent: { $sum: { $cond: [{ $ne: ['$sentAt', null] }, 1, 0] } },
+        },
     },
-  },
-  {
-    $project: {
-      channel:     "$_id",
-      successRate: { $multiply: [{ $divide: ["$sent", "$processed"] }, 100] },
-      processed:   1,
-      sent:        1,
+    {
+        $project: {
+            channel: '$_id',
+            successRate: {
+                $multiply: [{ $divide: ['$sent', '$processed'] }, 100],
+            },
+            processed: 1,
+            sent: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1244,49 +1375,52 @@ $$\text{queue latency} = \text{AVG}(processedAt - createdAt)\ \text{(in seconds)
 
 ```js
 db.NotificationDeliveries.aggregate([
-  {
-    $match: {
-      processedAt: { $ne: null },
-      createdAt:   { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
-    },
-  },
-  {
-    $project: {
-      channel:      1,
-      processingMs: { $subtract: ["$processedAt", "$createdAt"] },
-    },
-  },
-  {
-    $group: {
-      _id:       "$channel",
-      avgMs:     { $avg: "$processingMs" },
-      p50Ms: {
-        $percentile: {
-          input:  "$processingMs",
-          p:      [0.5],
-          method: "approximate",
+    {
+        $match: {
+            processedAt: { $ne: null },
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
         },
-      },
-      p95Ms: {
-        $percentile: {
-          input:  "$processingMs",
-          p:      [0.95],
-          method: "approximate",
+    },
+    {
+        $project: {
+            channel: 1,
+            processingMs: { $subtract: ['$processedAt', '$createdAt'] },
         },
-      },
-      maxMs: { $max: "$processingMs" },
     },
-  },
-  {
-    $project: {
-      channel:          "$_id",
-      avgSeconds:       { $divide: ["$avgMs", 1000] },
-      p50Seconds:       { $divide: [{ $arrayElemAt: ["$p50Ms", 0] }, 1000] },
-      p95Seconds:       { $divide: [{ $arrayElemAt: ["$p95Ms", 0] }, 1000] },
-      maxSeconds:       { $divide: ["$maxMs", 1000] },
+    {
+        $group: {
+            _id: '$channel',
+            avgMs: { $avg: '$processingMs' },
+            p50Ms: {
+                $percentile: {
+                    input: '$processingMs',
+                    p: [0.5],
+                    method: 'approximate',
+                },
+            },
+            p95Ms: {
+                $percentile: {
+                    input: '$processingMs',
+                    p: [0.95],
+                    method: 'approximate',
+                },
+            },
+            maxMs: { $max: '$processingMs' },
+        },
     },
-  },
-])
+    {
+        $project: {
+            channel: '$_id',
+            avgSeconds: { $divide: ['$avgMs', 1000] },
+            p50Seconds: { $divide: [{ $arrayElemAt: ['$p50Ms', 0] }, 1000] },
+            p95Seconds: { $divide: [{ $arrayElemAt: ['$p95Ms', 0] }, 1000] },
+            maxSeconds: { $divide: ['$maxMs', 1000] },
+        },
+    },
+]);
 ```
 
 ---
@@ -1302,50 +1436,53 @@ $$\text{send latency} = \text{AVG}(sentAt - processedAt)\ \text{(in milliseconds
 
 ```js
 db.NotificationDeliveries.aggregate([
-  {
-    $match: {
-      processedAt: { $ne: null },
-      sentAt:      { $ne: null },
-      createdAt:   { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
-    },
-  },
-  {
-    $project: {
-      channel: 1,
-      sendMs:  { $subtract: ["$sentAt", "$processedAt"] },
-    },
-  },
-  {
-    $group: {
-      _id:   "$channel",
-      avgMs: { $avg: "$sendMs" },
-      p50Ms: {
-        $percentile: {
-          input:  "$sendMs",
-          p:      [0.5],
-          method: "approximate",
+    {
+        $match: {
+            processedAt: { $ne: null },
+            sentAt: { $ne: null },
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
         },
-      },
-      p95Ms: {
-        $percentile: {
-          input:  "$sendMs",
-          p:      [0.95],
-          method: "approximate",
+    },
+    {
+        $project: {
+            channel: 1,
+            sendMs: { $subtract: ['$sentAt', '$processedAt'] },
         },
-      },
-      maxMs: { $max: "$sendMs" },
     },
-  },
-  {
-    $project: {
-      channel:    "$_id",
-      avgMs:      1,
-      p50Ms:      { $arrayElemAt: ["$p50Ms", 0] },
-      p95Ms:      { $arrayElemAt: ["$p95Ms", 0] },
-      maxMs:      1,
+    {
+        $group: {
+            _id: '$channel',
+            avgMs: { $avg: '$sendMs' },
+            p50Ms: {
+                $percentile: {
+                    input: '$sendMs',
+                    p: [0.5],
+                    method: 'approximate',
+                },
+            },
+            p95Ms: {
+                $percentile: {
+                    input: '$sendMs',
+                    p: [0.95],
+                    method: 'approximate',
+                },
+            },
+            maxMs: { $max: '$sendMs' },
+        },
     },
-  },
-])
+    {
+        $project: {
+            channel: '$_id',
+            avgMs: 1,
+            p50Ms: { $arrayElemAt: ['$p50Ms', 0] },
+            p95Ms: { $arrayElemAt: ['$p95Ms', 0] },
+            maxMs: 1,
+        },
+    },
+]);
 ```
 
 ---
@@ -1361,22 +1498,22 @@ $$\text{read rate}_{type} = \frac{\text{COUNT}(isRead = true\ AND\ type = X)}{\t
 
 ```js
 db.Notifications.aggregate([
-  {
-    $group: {
-      _id:   "$type",
-      total: { $sum: 1 },
-      read:  { $sum: { $cond: ["$isRead", 1, 0] } },
+    {
+        $group: {
+            _id: '$type',
+            total: { $sum: 1 },
+            read: { $sum: { $cond: ['$isRead', 1, 0] } },
+        },
     },
-  },
-  {
-    $project: {
-      type:     "$_id",
-      readRate: { $multiply: [{ $divide: ["$read", "$total"] }, 100] },
-      total:    1,
-      read:     1,
+    {
+        $project: {
+            type: '$_id',
+            readRate: { $multiply: [{ $divide: ['$read', '$total'] }, 100] },
+            total: 1,
+            read: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1389,14 +1526,17 @@ db.Notifications.aggregate([
 
 ```js
 db.NotificationDeliveries.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  { $group: { _id: "$channel", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $group: { _id: '$channel', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -1409,29 +1549,34 @@ db.NotificationDeliveries.aggregate([
 
 ```js
 db.Notifications.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  { $group: { _id: "$priority", count: { $sum: 1 } } },
-  {
-    $group: {
-      _id:        null,
-      total:      { $sum: "$count" },
-      priorities: { $push: { priority: "$_id", count: "$count" } },
+    { $group: { _id: '$priority', count: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            total: { $sum: '$count' },
+            priorities: { $push: { priority: '$_id', count: '$count' } },
+        },
     },
-  },
-  { $unwind: "$priorities" },
-  {
-    $project: {
-      priority: "$priorities.priority",
-      count:    "$priorities.count",
-      percent:  { $multiply: [{ $divide: ["$priorities.count", "$total"] }, 100] },
+    { $unwind: '$priorities' },
+    {
+        $project: {
+            priority: '$priorities.priority',
+            count: '$priorities.count',
+            percent: {
+                $multiply: [{ $divide: ['$priorities.count', '$total'] }, 100],
+            },
+        },
     },
-  },
-  { $sort: { count: -1 } },
-])
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -1447,33 +1592,46 @@ $$\text{failure token rate} = \frac{\text{COUNT(deliveries with failureTokens > 
 
 ```js
 db.NotificationDeliveries.aggregate([
-  {
-    $match: {
-      channel:     "push",
-      processedAt: { $ne: null },
-      createdAt:   { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            channel: 'push',
+            processedAt: { $ne: null },
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id:               null,
-      totalDeliveries:   { $sum: 1 },
-      totalFailedTokens: { $sum: { $size: "$failureTokens" } },
-      deliveriesWithFailures: {
-        $sum: { $cond: [{ $gt: [{ $size: "$failureTokens" }, 0] }, 1, 0] },
-      },
+    {
+        $group: {
+            _id: null,
+            totalDeliveries: { $sum: 1 },
+            totalFailedTokens: { $sum: { $size: '$failureTokens' } },
+            deliveriesWithFailures: {
+                $sum: {
+                    $cond: [{ $gt: [{ $size: '$failureTokens' }, 0] }, 1, 0],
+                },
+            },
+        },
     },
-  },
-  {
-    $project: {
-      failureDeliveryRate: {
-        $multiply: [{ $divide: ["$deliveriesWithFailures", "$totalDeliveries"] }, 100],
-      },
-      totalFailedTokens: 1,
-      totalDeliveries:   1,
+    {
+        $project: {
+            failureDeliveryRate: {
+                $multiply: [
+                    {
+                        $divide: [
+                            '$deliveriesWithFailures',
+                            '$totalDeliveries',
+                        ],
+                    },
+                    100,
+                ],
+            },
+            totalFailedTokens: 1,
+            totalDeliveries: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1489,23 +1647,27 @@ $$\text{opt-out rate}_{channel, type} = \frac{\text{COUNT}(isActive = false)}{\t
 
 ```js
 db.NotificationUserSettings.aggregate([
-  {
-    $group: {
-      _id:      { channel: "$channel", type: "$type" },
-      total:    { $sum: 1 },
-      optedOut: { $sum: { $cond: [{ $eq: ["$isActive", false] }, 1, 0] } },
+    {
+        $group: {
+            _id: { channel: '$channel', type: '$type' },
+            total: { $sum: 1 },
+            optedOut: {
+                $sum: { $cond: [{ $eq: ['$isActive', false] }, 1, 0] },
+            },
+        },
     },
-  },
-  {
-    $project: {
-      channel:    "$_id.channel",
-      type:       "$_id.type",
-      optOutRate: { $multiply: [{ $divide: ["$optedOut", "$total"] }, 100] },
-      total:      1,
-      optedOut:   1,
+    {
+        $project: {
+            channel: '$_id.channel',
+            type: '$_id.type',
+            optOutRate: {
+                $multiply: [{ $divide: ['$optedOut', '$total'] }, 100],
+            },
+            total: 1,
+            optedOut: 1,
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1521,39 +1683,39 @@ db.NotificationUserSettings.aggregate([
 ```js
 // Step 1: users who have modified at least one notification setting
 db.NotificationUserSettings.aggregate([
-  {
-    $match: {
-      $expr: { $gt: ["$updatedAt", "$createdAt"] },
+    {
+        $match: {
+            $expr: { $gt: ['$updatedAt', '$createdAt'] },
+        },
     },
-  },
-  {
-    $group: {
-      _id: "$userId",
+    {
+        $group: {
+            _id: '$userId',
+        },
     },
-  },
-  { $count: "usersWhoCustomized" },
-])
+    { $count: 'usersWhoCustomized' },
+]);
 
 // Step 2: total active users
-db.Users.countDocuments({ deletedAt: null, status: "active" })
+db.Users.countDocuments({ deletedAt: null, status: 'active' });
 
 // adoption rate (%) = (usersWhoCustomized / totalActiveUsers) * 100
 
 // Breakdown: which channel+type combinations are most commonly changed
 db.NotificationUserSettings.aggregate([
-  {
-    $match: {
-      $expr: { $gt: ["$updatedAt", "$createdAt"] },
+    {
+        $match: {
+            $expr: { $gt: ['$updatedAt', '$createdAt'] },
+        },
     },
-  },
-  {
-    $group: {
-      _id:   { channel: "$channel", type: "$type" },
-      count: { $sum: 1 },
+    {
+        $group: {
+            _id: { channel: '$channel', type: '$type' },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $sort: { count: -1 } },
-])
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -1569,28 +1731,30 @@ $$\text{avg time-to-read} = \text{AVG}(readAt - createdAt)\ \text{(in minutes)}$
 
 ```js
 db.Notifications.aggregate([
-  { $match: { isRead: true, readAt: { $ne: null } } },
-  {
-    $group: {
-      _id:          "$type",
-      avgReadMs:    { $avg: { $subtract: ["$readAt", "$createdAt"] } },
-      medianReadMs: {
-        $percentile: {
-          input:  { $subtract: ["$readAt", "$createdAt"] },
-          p:      [0.5],
-          method: "approximate",
+    { $match: { isRead: true, readAt: { $ne: null } } },
+    {
+        $group: {
+            _id: '$type',
+            avgReadMs: { $avg: { $subtract: ['$readAt', '$createdAt'] } },
+            medianReadMs: {
+                $percentile: {
+                    input: { $subtract: ['$readAt', '$createdAt'] },
+                    p: [0.5],
+                    method: 'approximate',
+                },
+            },
         },
-      },
     },
-  },
-  {
-    $project: {
-      type:           "$_id",
-      avgReadMinutes: { $divide: ["$avgReadMs", 60000] },
-      p50ReadMinutes: { $divide: [{ $arrayElemAt: ["$medianReadMs", 0] }, 60000] },
+    {
+        $project: {
+            type: '$_id',
+            avgReadMinutes: { $divide: ['$avgReadMs', 60000] },
+            p50ReadMinutes: {
+                $divide: [{ $arrayElemAt: ['$medianReadMs', 0] }, 60000],
+            },
+        },
     },
-  },
-])
+]);
 ```
 
 ---
@@ -1603,14 +1767,17 @@ db.Notifications.aggregate([
 
 ```js
 db.Notifications.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: ISODate("2026-01-01"), $lt: ISODate("2026-02-01") },
+    {
+        $match: {
+            createdAt: {
+                $gte: ISODate('2026-01-01'),
+                $lt: ISODate('2026-02-01'),
+            },
+        },
     },
-  },
-  { $group: { _id: "$type", count: { $sum: 1 } } },
-  { $sort: { count: -1 } },
-])
+    { $group: { _id: '$type', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -1629,35 +1796,32 @@ $$\text{acceptance rate} = \frac{\text{COUNT}(acceptances\ for\ termPolicyId)}{\
 ```js
 // Step 1: Get total acceptances per policy
 db.TermPolicyUserAcceptances.aggregate([
-  { $group: { _id: "$termPolicyId", accepted: { $sum: 1 } } },
-  {
-    $lookup: {
-      from:         "TermPolicies",
-      localField:   "_id",
-      foreignField: "_id",
-      as:           "policy",
+    { $group: { _id: '$termPolicyId', accepted: { $sum: 1 } } },
+    {
+        $lookup: {
+            from: 'TermPolicies',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'policy',
+        },
     },
-  },
-  { $unwind: "$policy" },
-  {
-    $project: {
-      type:        "$policy.type",
-      version:     "$policy.version",
-      publishedAt: "$policy.publishedAt",
-      accepted:    1,
+    { $unwind: '$policy' },
+    {
+        $project: {
+            type: '$policy.type',
+            version: '$policy.version',
+            publishedAt: '$policy.publishedAt',
+            accepted: 1,
+        },
     },
-  },
-])
+]);
 
 // Step 2: total active users at time of publish
 db.Users.countDocuments({
-  signUpAt: { $lte: ISODate("2026-01-15") }, // publishedAt
-  status:   "active",
-  $or: [
-    { deletedAt: null },
-    { deletedAt: { $gt: ISODate("2026-01-15") } },
-  ],
-})
+    signUpAt: { $lte: ISODate('2026-01-15') }, // publishedAt
+    status: 'active',
+    $or: [{ deletedAt: null }, { deletedAt: { $gt: ISODate('2026-01-15') } }],
+});
 ```
 
 ---
@@ -1673,42 +1837,44 @@ $$\text{avg time-to-accept} = \text{AVG}(acceptedAt - publishedAt)\ \text{(in ho
 
 ```js
 db.TermPolicyUserAcceptances.aggregate([
-  {
-    $lookup: {
-      from:         "TermPolicies",
-      localField:   "termPolicyId",
-      foreignField: "_id",
-      as:           "policy",
-    },
-  },
-  { $unwind: "$policy" },
-  {
-    $project: {
-      diffMs: { $subtract: ["$acceptedAt", "$policy.publishedAt"] },
-      type:   "$policy.type",
-    },
-  },
-  {
-    $group: {
-      _id:   "$type",
-      avgMs: { $avg: "$diffMs" },
-      p50Ms: {
-        $percentile: {
-          input:  "$diffMs",
-          p:      [0.5],
-          method: "approximate",
+    {
+        $lookup: {
+            from: 'TermPolicies',
+            localField: 'termPolicyId',
+            foreignField: '_id',
+            as: 'policy',
         },
-      },
     },
-  },
-  {
-    $project: {
-      type:           "$_id",
-      avgAcceptHours: { $divide: ["$avgMs", 3600000] },
-      p50AcceptHours: { $divide: [{ $arrayElemAt: ["$p50Ms", 0] }, 3600000] },
+    { $unwind: '$policy' },
+    {
+        $project: {
+            diffMs: { $subtract: ['$acceptedAt', '$policy.publishedAt'] },
+            type: '$policy.type',
+        },
     },
-  },
-])
+    {
+        $group: {
+            _id: '$type',
+            avgMs: { $avg: '$diffMs' },
+            p50Ms: {
+                $percentile: {
+                    input: '$diffMs',
+                    p: [0.5],
+                    method: 'approximate',
+                },
+            },
+        },
+    },
+    {
+        $project: {
+            type: '$_id',
+            avgAcceptHours: { $divide: ['$avgMs', 3600000] },
+            p50AcceptHours: {
+                $divide: [{ $arrayElemAt: ['$p50Ms', 0] }, 3600000],
+            },
+        },
+    },
+]);
 ```
 
 ---
@@ -1726,6 +1892,7 @@ A user logs in from two geographically distant locations within a time window ph
 **Source:** `Sessions` — `geoLocation`, `createdAt`, `userId`
 
 **Logic:**
+
 - Fetch two consecutive sessions for the same user
 - Calculate geographical distance between `geoLocation` values (Haversine formula)
 - If distance > threshold AND time difference < threshold → anomaly
@@ -1737,29 +1904,29 @@ Where $r = 6371$ km, $\phi$ = latitude, $\lambda$ = longitude.
 
 ```js
 db.Sessions.aggregate([
-  {
-    $match: {
-      isRevoked:   false,
-      geoLocation: { $ne: null },
-      createdAt:   { $gte: ISODate("2026-01-01") },
-    },
-  },
-  { $sort: { userId: 1, createdAt: 1 } },
-  {
-    $group: {
-      _id:      "$userId",
-      sessions: {
-        $push: {
-          createdAt: "$createdAt",
-          lat:       "$geoLocation.latitude",
-          lng:       "$geoLocation.longitude",
-          country:   "$geoLocation.country",
-          ipAddress: "$ipAddress",
+    {
+        $match: {
+            isRevoked: false,
+            geoLocation: { $ne: null },
+            createdAt: { $gte: ISODate('2026-01-01') },
         },
-      },
     },
-  },
-])
+    { $sort: { userId: 1, createdAt: 1 } },
+    {
+        $group: {
+            _id: '$userId',
+            sessions: {
+                $push: {
+                    createdAt: '$createdAt',
+                    lat: '$geoLocation.latitude',
+                    lng: '$geoLocation.longitude',
+                    country: '$geoLocation.country',
+                    ipAddress: '$ipAddress',
+                },
+            },
+        },
+    },
+]);
 // In application layer: for each user, compare session[i] and session[i-1]
 // Calculate Haversine distance and time delta
 // Flag if: distance > 500 km AND delta < 1 hour
@@ -1781,33 +1948,41 @@ A single IP attempts login across many different accounts in a short period — 
 **Source:** `ActivityLogs` — `action`, `ipAddress`, `createdAt`
 
 ```js
-const WINDOW_MINUTES    = 10;
+const WINDOW_MINUTES = 10;
 const THRESHOLD_ACCOUNTS = 5;
 
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    { $in: ["userLoginCredential", "userLoginGoogle", "userLoginApple"] },
-      createdAt: { $gte: new Date(Date.now() - WINDOW_MINUTES * 60 * 1000) },
+    {
+        $match: {
+            action: {
+                $in: [
+                    'userLoginCredential',
+                    'userLoginGoogle',
+                    'userLoginApple',
+                ],
+            },
+            createdAt: {
+                $gte: new Date(Date.now() - WINDOW_MINUTES * 60 * 1000),
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id:      "$ipAddress",
-      userIds:  { $addToSet: "$userId" },
-      attempts: { $sum: 1 },
+    {
+        $group: {
+            _id: '$ipAddress',
+            userIds: { $addToSet: '$userId' },
+            attempts: { $sum: 1 },
+        },
     },
-  },
-  {
-    $project: {
-      ipAddress:   "$_id",
-      uniqueUsers: { $size: "$userIds" },
-      attempts:    1,
+    {
+        $project: {
+            ipAddress: '$_id',
+            uniqueUsers: { $size: '$userIds' },
+            attempts: 1,
+        },
     },
-  },
-  { $match: { uniqueUsers: { $gte: THRESHOLD_ACCOUNTS } } },
-  { $sort: { uniqueUsers: -1 } },
-])
+    { $match: { uniqueUsers: { $gte: THRESHOLD_ACCOUNTS } } },
+    { $sort: { uniqueUsers: -1 } },
+]);
 ```
 
 ---
@@ -1822,22 +1997,25 @@ Spike in `passwordAttempt` across many accounts simultaneously — different fro
 const MAX_ATTEMPT = 5;
 
 db.Users.aggregate([
-  { $match: { deletedAt: null, passwordAttempt: { $gt: 0 } } },
-  {
-    $bucket: {
-      groupBy:    "$passwordAttempt",
-      boundaries: [1, 2, 3, 4, 5, 10],
-      default:    "10+",
-      output: { count: { $sum: 1 } },
+    { $match: { deletedAt: null, passwordAttempt: { $gt: 0 } } },
+    {
+        $bucket: {
+            groupBy: '$passwordAttempt',
+            boundaries: [1, 2, 3, 4, 5, 10],
+            default: '10+',
+            output: { count: { $sum: 1 } },
+        },
     },
-  },
-])
+]);
 
 // Flag users approaching lockout
-db.Users.find({
-  deletedAt:       null,
-  passwordAttempt: { $gte: MAX_ATTEMPT - 1 },
-}, { email: 1, passwordAttempt: 1, lastIPAddress: 1, lastLoginAt: 1 })
+db.Users.find(
+    {
+        deletedAt: null,
+        passwordAttempt: { $gte: MAX_ATTEMPT - 1 },
+    },
+    { email: 1, passwordAttempt: 1, lastIPAddress: 1, lastLoginAt: 1 }
+);
 ```
 
 ---
@@ -1850,31 +2028,31 @@ A user suddenly has far more devices than average — could indicate a compromis
 
 ```js
 db.Devices.aggregate([
-  { $group: { _id: "$userId", deviceCount: { $sum: 1 } } },
-  {
-    $group: {
-      _id:    null,
-      avg:    { $avg: "$deviceCount" },
-      stdDev: { $stdDevPop: "$deviceCount" },
-      all:    { $push: { userId: "$_id", deviceCount: "$deviceCount" } },
+    { $group: { _id: '$userId', deviceCount: { $sum: 1 } } },
+    {
+        $group: {
+            _id: null,
+            avg: { $avg: '$deviceCount' },
+            stdDev: { $stdDevPop: '$deviceCount' },
+            all: { $push: { userId: '$_id', deviceCount: '$deviceCount' } },
+        },
     },
-  },
-  { $unwind: "$all" },
-  {
-    $project: {
-      userId:      "$all.userId",
-      deviceCount: "$all.deviceCount",
-      zScore: {
-        $divide: [
-          { $subtract: ["$all.deviceCount", "$avg"] },
-          "$stdDev",
-        ],
-      },
+    { $unwind: '$all' },
+    {
+        $project: {
+            userId: '$all.userId',
+            deviceCount: '$all.deviceCount',
+            zScore: {
+                $divide: [
+                    { $subtract: ['$all.deviceCount', '$avg'] },
+                    '$stdDev',
+                ],
+            },
+        },
     },
-  },
-  { $match: { zScore: { $gt: 3 } } },
-  { $sort: { deviceCount: -1 } },
-])
+    { $match: { zScore: { $gt: 3 } } },
+    { $sort: { deviceCount: -1 } },
+]);
 ```
 
 ---
@@ -1887,23 +2065,33 @@ A user who historically logs in during business hours suddenly logs in late at n
 
 ```js
 db.ActivityLogs.aggregate([
-  { $match: { action: { $in: ["userLoginCredential", "userLoginGoogle", "userLoginApple"] } } },
-  {
-    $group: {
-      _id: {
-        userId: "$userId",
-        hour:   { $hour: "$createdAt" },
-      },
-      count: { $sum: 1 },
+    {
+        $match: {
+            action: {
+                $in: [
+                    'userLoginCredential',
+                    'userLoginGoogle',
+                    'userLoginApple',
+                ],
+            },
+        },
     },
-  },
-  {
-    $group: {
-      _id:   "$_id.userId",
-      hours: { $push: { hour: "$_id.hour", count: "$count" } },
+    {
+        $group: {
+            _id: {
+                userId: '$userId',
+                hour: { $hour: '$createdAt' },
+            },
+            count: { $sum: 1 },
+        },
     },
-  },
-])
+    {
+        $group: {
+            _id: '$_id.userId',
+            hours: { $push: { hour: '$_id.hour', count: '$count' } },
+        },
+    },
+]);
 // In application layer: calculate hour distribution per user,
 // flag if the most recent login occurred at an hour with
 // historical frequency < 5% of total user activity.
@@ -1924,35 +2112,35 @@ Many different accounts hit `loginFailed` from the same IP in a short window.
 **Source:** `ActivityLogs` — `action = userLoginCredential` (failed implied by `userReachMaxPasswordAttempt` or custom failed action), `ipAddress`, `userId`, `createdAt`
 
 ```js
-const WINDOW_MS    = 5 * 60 * 1000; // 5 minutes
+const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const MIN_ACCOUNTS = 10;
 
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    "userReachMaxPasswordAttempt",
-      createdAt: { $gte: new Date(Date.now() - WINDOW_MS) },
+    {
+        $match: {
+            action: 'userReachMaxPasswordAttempt',
+            createdAt: { $gte: new Date(Date.now() - WINDOW_MS) },
+        },
     },
-  },
-  {
-    $group: {
-      _id:         "$ipAddress",
-      uniqueUsers: { $addToSet: "$userId" },
-      userAgents:  { $addToSet: "$userAgent.ua" },
-      failCount:   { $sum: 1 },
+    {
+        $group: {
+            _id: '$ipAddress',
+            uniqueUsers: { $addToSet: '$userId' },
+            userAgents: { $addToSet: '$userAgent.ua' },
+            failCount: { $sum: 1 },
+        },
     },
-  },
-  {
-    $project: {
-      ip:               "$_id",
-      uniqueUserCount:  { $size: "$uniqueUsers" },
-      uniqueUserAgents: { $size: "$userAgents" },
-      failCount:        1,
+    {
+        $project: {
+            ip: '$_id',
+            uniqueUserCount: { $size: '$uniqueUsers' },
+            uniqueUserAgents: { $size: '$userAgents' },
+            failCount: 1,
+        },
     },
-  },
-  { $match: { uniqueUserCount: { $gte: MIN_ACCOUNTS } } },
-  { $sort: { uniqueUserCount: -1 } },
-])
+    { $match: { uniqueUserCount: { $gte: MIN_ACCOUNTS } } },
+    { $sort: { uniqueUserCount: -1 } },
+]);
 // uniqueUserAgents = 1 → likely single bot
 // uniqueUserAgents is high but same IP → distributed stuffing
 ```
@@ -1963,37 +2151,37 @@ db.ActivityLogs.aggregate([
 
 Combination of sensitive actions in a short window — classic compromised account pattern.
 
-| Signal | Source |
-|--------|--------|
-| Password changed | `PasswordHistories.type = profile` |
-| GeoLocation changed drastically | `Sessions.geoLocation` different country from previous |
-| New device added | `Devices.createdAt` within 1 hour of password change |
-| 2FA disabled or reset | `ActivityLogs.action = userDisableTwoFactor` or `adminUserResetTwoFactor` |
-| New push token registered | `Devices.notificationToken` updated |
+| Signal                          | Source                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| Password changed                | `PasswordHistories.type = profile`                                        |
+| GeoLocation changed drastically | `Sessions.geoLocation` different country from previous                    |
+| New device added                | `Devices.createdAt` within 1 hour of password change                      |
+| 2FA disabled or reset           | `ActivityLogs.action = userDisableTwoFactor` or `adminUserResetTwoFactor` |
+| New push token registered       | `Devices.notificationToken` updated                                       |
 
 ```js
 // Password change followed by new device within 1 hour
 const passwordChanges = db.PasswordHistories.aggregate([
-  {
-    $match: {
-      type:      "profile",
-      createdAt: { $gte: ISODate("2026-01-01") },
+    {
+        $match: {
+            type: 'profile',
+            createdAt: { $gte: ISODate('2026-01-01') },
+        },
     },
-  },
-  { $project: { userId: 1, changedAt: "$createdAt" } },
+    { $project: { userId: 1, changedAt: '$createdAt' } },
 ]).toArray();
 
 passwordChanges.forEach(({ userId, changedAt }) => {
-  const newDevice = db.Devices.findOne({
-    userId,
-    createdAt: {
-      $gte: changedAt,
-      $lte: new Date(changedAt.getTime() + 3600000),
-    },
-  });
-  if (newDevice) {
-    // Flag as ATO candidate
-  }
+    const newDevice = db.Devices.findOne({
+        userId,
+        createdAt: {
+            $gte: changedAt,
+            $lte: new Date(changedAt.getTime() + 3600000),
+        },
+    });
+    if (newDevice) {
+        // Flag as ATO candidate
+    }
 });
 ```
 
@@ -2006,39 +2194,41 @@ Mass registration from the same IP or email domain pattern — bot sign-up for s
 **Source:** `Users` — `signUpAt`, `lastIPAddress`, `email`
 
 ```js
-const WINDOW_MINUTES     = 30;
+const WINDOW_MINUTES = 30;
 const THRESHOLD_ACCOUNTS = 5;
 
 // IP-based
 db.Users.aggregate([
-  {
-    $match: {
-      signUpAt:  { $gte: new Date(Date.now() - WINDOW_MINUTES * 60 * 1000) },
-      deletedAt: null,
+    {
+        $match: {
+            signUpAt: {
+                $gte: new Date(Date.now() - WINDOW_MINUTES * 60 * 1000),
+            },
+            deletedAt: null,
+        },
     },
-  },
-  { $group: { _id: "$lastIPAddress", count: { $sum: 1 } } },
-  { $match: { count: { $gte: THRESHOLD_ACCOUNTS } } },
-  { $sort: { count: -1 } },
-])
+    { $group: { _id: '$lastIPAddress', count: { $sum: 1 } } },
+    { $match: { count: { $gte: THRESHOLD_ACCOUNTS } } },
+    { $sort: { count: -1 } },
+]);
 
 // Domain pattern-based
 db.Users.aggregate([
-  {
-    $match: {
-      signUpAt:  { $gte: ISODate("2026-01-01") },
-      deletedAt: null,
+    {
+        $match: {
+            signUpAt: { $gte: ISODate('2026-01-01') },
+            deletedAt: null,
+        },
     },
-  },
-  {
-    $project: {
-      domain: { $arrayElemAt: [{ $split: ["$email", "@"] }, 1] },
+    {
+        $project: {
+            domain: { $arrayElemAt: [{ $split: ['$email', '@'] }, 1] },
+        },
     },
-  },
-  { $group: { _id: "$domain", count: { $sum: 1 } } },
-  { $match: { count: { $gte: 10 } } },
-  { $sort: { count: -1 } },
-])
+    { $group: { _id: '$domain', count: { $sum: 1 } } },
+    { $match: { count: { $gte: 10 } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -2050,33 +2240,33 @@ Bot sends forgot password requests to many emails to identify which accounts exi
 **Source:** `ActivityLogs` — `action = userForgotPassword`, `ipAddress`, `userId`
 
 ```js
-const WINDOW_MS    = 10 * 60 * 1000; // 10 minutes
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const MIN_REQUESTS = 5;
 
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    "userForgotPassword",
-      createdAt: { $gte: new Date(Date.now() - WINDOW_MS) },
+    {
+        $match: {
+            action: 'userForgotPassword',
+            createdAt: { $gte: new Date(Date.now() - WINDOW_MS) },
+        },
     },
-  },
-  {
-    $group: {
-      _id:     "$ipAddress",
-      count:   { $sum: 1 },
-      userIds: { $addToSet: "$userId" },
+    {
+        $group: {
+            _id: '$ipAddress',
+            count: { $sum: 1 },
+            userIds: { $addToSet: '$userId' },
+        },
     },
-  },
-  { $match: { count: { $gte: MIN_REQUESTS } } },
-  {
-    $project: {
-      ip:          "$_id",
-      requests:    "$count",
-      uniqueUsers: { $size: "$userIds" },
+    { $match: { count: { $gte: MIN_REQUESTS } } },
+    {
+        $project: {
+            ip: '$_id',
+            requests: '$count',
+            uniqueUsers: { $size: '$userIds' },
+        },
     },
-  },
-  { $sort: { requests: -1 } },
-])
+    { $sort: { requests: -1 } },
+]);
 ```
 
 ---
@@ -2089,23 +2279,23 @@ One device fingerprint used by multiple users — indicates fake accounts operat
 
 ```js
 db.Devices.aggregate([
-  {
-    $group: {
-      _id:     "$fingerprint",
-      userIds: { $addToSet: "$userId" },
-      count:   { $sum: 1 },
+    {
+        $group: {
+            _id: '$fingerprint',
+            userIds: { $addToSet: '$userId' },
+            count: { $sum: 1 },
+        },
     },
-  },
-  { $match: { count: { $gt: 1 } } },
-  {
-    $project: {
-      fingerprint: "$_id",
-      userCount:   { $size: "$userIds" },
-      userIds:     1,
+    { $match: { count: { $gt: 1 } } },
+    {
+        $project: {
+            fingerprint: '$_id',
+            userCount: { $size: '$userIds' },
+            userIds: 1,
+        },
     },
-  },
-  { $sort: { userCount: -1 } },
-])
+    { $sort: { userCount: -1 } },
+]);
 ```
 
 ---
@@ -2118,25 +2308,27 @@ A new session is created immediately after an admin performs `userRevokeSessionB
 
 ```js
 db.ActivityLogs.aggregate([
-  {
-    $match: {
-      action:    { $in: ["adminSessionRevoke", "adminUserUpdatePassword"] },
-      createdAt: { $gte: ISODate("2026-01-01") },
+    {
+        $match: {
+            action: { $in: ['adminSessionRevoke', 'adminUserUpdatePassword'] },
+            createdAt: { $gte: ISODate('2026-01-01') },
+        },
     },
-  },
-  { $project: { userId: 1, actionAt: "$createdAt" } },
-]).toArray().forEach(({ userId, actionAt }) => {
-  const newSession = db.Sessions.findOne({
-    userId,
-    createdAt: {
-      $gte: actionAt,
-      $lte: new Date(actionAt.getTime() + 5 * 60 * 1000),
-    },
-  });
-  if (newSession) {
-    // Flag: new session after admin intervention → notify security team
-  }
-});
+    { $project: { userId: 1, actionAt: '$createdAt' } },
+])
+    .toArray()
+    .forEach(({ userId, actionAt }) => {
+        const newSession = db.Sessions.findOne({
+            userId,
+            createdAt: {
+                $gte: actionAt,
+                $lte: new Date(actionAt.getTime() + 5 * 60 * 1000),
+            },
+        });
+        if (newSession) {
+            // Flag: new session after admin intervention → notify security team
+        }
+    });
 ```
 
 ---
@@ -2149,25 +2341,25 @@ A single user creates many forgot password tokens in a short window without comp
 
 ```js
 const WINDOW_HOURS = 24;
-const THRESHOLD    = 3;
+const THRESHOLD = 3;
 
 db.ForgotPasswords.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: new Date(Date.now() - WINDOW_HOURS * 3600000) },
-      isUsed:    false,
+    {
+        $match: {
+            createdAt: { $gte: new Date(Date.now() - WINDOW_HOURS * 3600000) },
+            isUsed: false,
+        },
     },
-  },
-  {
-    $group: {
-      _id:    "$userId",
-      count:  { $sum: 1 },
-      emails: { $addToSet: "$to" },
+    {
+        $group: {
+            _id: '$userId',
+            count: { $sum: 1 },
+            emails: { $addToSet: '$to' },
+        },
     },
-  },
-  { $match: { count: { $gte: THRESHOLD } } },
-  { $sort: { count: -1 } },
-])
+    { $match: { count: { $gte: THRESHOLD } } },
+    { $sort: { count: -1 } },
+]);
 ```
 
 ---
@@ -2176,16 +2368,16 @@ db.ForgotPasswords.aggregate([
 
 Combine signals into a single **risk score** per user for investigation prioritization:
 
-| Signal | Weight |
-|--------|--------|
-| New session after admin revoke (< 5 minutes) | +50 |
-| Impossible travel detected | +40 |
-| New device after password change (< 1 hour) | +30 |
-| Login from IP detected in credential stuffing | +30 |
-| Fingerprint used by > 1 user | +25 |
-| `passwordAttempt` ≥ max - 1 | +20 |
-| Sign-up from IP with many accounts | +20 |
-| Forgot password request ≥ threshold without reset | +15 |
+| Signal                                            | Weight |
+| ------------------------------------------------- | ------ |
+| New session after admin revoke (< 5 minutes)      | +50    |
+| Impossible travel detected                        | +40    |
+| New device after password change (< 1 hour)       | +30    |
+| Login from IP detected in credential stuffing     | +30    |
+| Fingerprint used by > 1 user                      | +25    |
+| `passwordAttempt` ≥ max - 1                       | +20    |
+| Sign-up from IP with many accounts                | +20    |
+| Forgot password request ≥ threshold without reset | +15    |
 
 **Action thresholds:**
 | Risk Score | Action |
@@ -2204,31 +2396,31 @@ Combine signals into a single **risk score** per user for investigation prioriti
 ### Recommended Approach
 
 1. **Expose via admin API** — create dedicated admin endpoints per module (e.g., `GET /admin/users/analytics/growth`) running the aggregations above
-2. **Cache results** — use Redis with TTL (1 hour for daily stats, 5 minutes for real-time) to avoid overloading MongoDB
+2. **Cache results** — use Redis with TTL (1 hour for daily stats, 5 minutes for real-time) to avoid overloading PostgreSQL
 3. **Background pre-computation** — for heavy aggregations (percentiles, cross-collection joins), use BullMQ to pre-compute and store in an `AnalyticsSnapshot` collection
 4. **Date range params** — all analytics endpoints must support `startDate` and `endDate` query params
 
-### MongoDB Version Requirements
+### PostgreSQL Query Requirements
 
-- `$percentile` operator requires **MongoDB 7.0+**
-- For older versions, calculate percentiles in the application layer after fetching the full distribution
+- PostgreSQL analytics queries must be rewritten and validated before implementation.
+- Heavy percentile queries should use PostgreSQL-native functions or application-layer calculation after fetching the distribution.
 
 ### Index Optimization
 
 Ensure the following indexes exist for optimal query performance:
 
-| Collection | Required Indexes |
-|---|---|
-| `Users` | `{ signUpAt: -1 }`, `{ deletedAt: 1, signUpAt: -1 }`, `{ status: 1, deletedAt: 1 }` |
-| `Sessions` | `{ isRevoked: 1, expiredAt: -1 }`, `{ createdAt: -1 }`, `{ deviceOwnershipId: 1, isRevoked: 1 }` |
-| `ActivityLogs` | `{ action: 1, createdAt: -1 }`, `{ userId: 1, action: 1, createdAt: -1 }` |
-| `Notifications` | `{ type: 1, isRead: 1, createdAt: -1 }`, `{ userId: 1, priority: 1, isRead: 1, createdAt: -1 }` |
-| `NotificationDeliveries` | `{ channel: 1, processedAt: 1, createdAt: -1 }` |
-| `ForgotPasswords` | `{ isUsed: 1, createdAt: -1 }` |
-| `TermPolicyUserAcceptances` | `{ termPolicyId: 1, acceptedAt: -1 }` |
-| `Verifications` | `{ type: 1, isUsed: 1, expiredAt: -1, createdAt: -1 }` |
-| `Devices` | `{ userId: 1, lastActiveAt: -1 }`, `{ fingerprint: 1 }`, `{ notificationProvider: 1 }`, `{ createdAt: -1 }` |
-| `UserMobiles` | `{ isVerified: 1, countryId: 1 }` |
-| `PasswordHistories` | `{ userId: 1, type: 1, createdAt: -1 }` |
+| Collection                  | Required Indexes                                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `Users`                     | `{ signUpAt: -1 }`, `{ deletedAt: 1, signUpAt: -1 }`, `{ status: 1, deletedAt: 1 }`                         |
+| `Sessions`                  | `{ isRevoked: 1, expiredAt: -1 }`, `{ createdAt: -1 }`, `{ deviceOwnershipId: 1, isRevoked: 1 }`            |
+| `ActivityLogs`              | `{ action: 1, createdAt: -1 }`, `{ userId: 1, action: 1, createdAt: -1 }`                                   |
+| `Notifications`             | `{ type: 1, isRead: 1, createdAt: -1 }`, `{ userId: 1, priority: 1, isRead: 1, createdAt: -1 }`             |
+| `NotificationDeliveries`    | `{ channel: 1, processedAt: 1, createdAt: -1 }`                                                             |
+| `ForgotPasswords`           | `{ isUsed: 1, createdAt: -1 }`                                                                              |
+| `TermPolicyUserAcceptances` | `{ termPolicyId: 1, acceptedAt: -1 }`                                                                       |
+| `Verifications`             | `{ type: 1, isUsed: 1, expiredAt: -1, createdAt: -1 }`                                                      |
+| `Devices`                   | `{ userId: 1, lastActiveAt: -1 }`, `{ fingerprint: 1 }`, `{ notificationProvider: 1 }`, `{ createdAt: -1 }` |
+| `UserMobiles`               | `{ isVerified: 1, countryId: 1 }`                                                                           |
+| `PasswordHistories`         | `{ userId: 1, type: 1, createdAt: -1 }`                                                                     |
 
 > Most indexes above **already exist** in the schema — see `@@index` definitions in each model. New ones added here are marked where schema changes may be needed.

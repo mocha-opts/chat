@@ -97,7 +97,7 @@ export class ActivityLogRepository {
                 metadata:
                     metadata && Object.keys(metadata).length > 0
                         ? (metadata as Prisma.InputJsonValue)
-                        : null,
+                        : Prisma.DbNull,
                 createdBy: userId,
             },
         });

@@ -1,6 +1,6 @@
 import { PaginationCursorQuery } from '@common/pagination/decorators/pagination.decorator';
 import { IPaginationQueryCursorParams } from '@common/pagination/interfaces/pagination.interface';
-import { RequestIsValidObjectIdPipe } from '@common/request/pipes/request.is-valid-object-id.pipe';
+import { RequestIsValidUuidPipe } from '@common/request/pipes/request.is-valid-uuid.pipe';
 import { RequestRequiredPipe } from '@common/request/pipes/request.required.pipe';
 import {
     Response,
@@ -88,11 +88,7 @@ export class DeviceSharedController {
     @Delete('/remove/:deviceOwnershipId')
     async remove(
         @AuthJwtPayload('userId') userId: string,
-        @Param(
-            'deviceOwnershipId',
-            RequestRequiredPipe,
-            RequestIsValidObjectIdPipe
-        )
+        @Param('deviceOwnershipId', RequestRequiredPipe, RequestIsValidUuidPipe)
         deviceOwnershipId: string
     ): Promise<void> {
         return this.deviceService.remove(userId, deviceOwnershipId);

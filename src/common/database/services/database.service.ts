@@ -38,7 +38,7 @@ export class DatabaseService
 
     async isHealthy(): Promise<HealthIndicatorResult> {
         try {
-            await this.$runCommandRaw({ ping: 1 });
+            await this.$queryRaw`SELECT 1`;
             return {
                 database: {
                     status: 'up',

@@ -7,7 +7,7 @@
 [![NestJs][nestjs-shield]][ref-nestjs]
 [![NodeJs][nodejs-shield]][ref-nodejs]
 [![Typescript][typescript-shield]][ref-typescript]
-[![MongoDB][mongodb-shield]][ref-mongodb]
+[![PostgreSQL][postgresql-shield]][ref-postgresql]
 [![JWT][jwt-shield]][ref-jwt]
 [![Jest][jest-shield]][ref-jest]
 [![PNPM][pnpm-shield]][ref-pnpm]
@@ -27,45 +27,44 @@ This boilerplate is perfect for:
 - 🔐 **Authentication Services** - Ready-to-use JWT, OAuth, and 2FA implementation
 - 📱 **Mobile App Backends** - RESTful API with social login support
 - 🌐 **Multi-tenant SaaS** - Role-based access control and policy management
-- 🚀 **Microservices** - Stateful sessions with Redis and async job processing
+- 🚀 **Modular Monoliths** - Stateful sessions with Redis and async job processing
 - 💼 **Startup MVPs** - Production-ready foundation to ship faster
-
 
 ## Table of Contents
 
 - [ACK NestJs Boilerplate 🔥 🚀](#ack-nestjs-boilerplate--)
     - [Ideal For](#ideal-for)
-  - [Table of Contents](#table-of-contents)
-  - [Important](#important)
-  - [TODO](#todo)
-    - [Next Features](#next-features)
-    - [Drop Features](#drop-features)
-    - [Test](#test)
-  - [Prerequisites](#prerequisites)
-  - [Build with](#build-with)
-  - [Objective](#objective)
-  - [Features](#features)
-    - [🎯 Architecture Highlights](#-architecture-highlights)
-    - [🔐 Authentication \& Security](#-authentication--security)
-    - [📊 Database \& Storage](#-database--storage)
-    - [⚡ Performance \& Optimization](#-performance--optimization)
-    - [🛠 Development Experience](#-development-experience)
-    - [📡 Integrations \& Monitoring](#-integrations--monitoring)
-    - [🔔 Notifications](#-notifications)
-    - [📝 Testing \& Documentation](#-testing--documentation)
-  - [Quick Start](#quick-start)
-  - [Change DB with Minimal Effort](#change-db-with-minimal-effort)
-    - [Supported Databases](#supported-databases)
-  - [Installation](#installation)
-  - [License](#license)
-  - [Contribute](#contribute)
-  - [Contact](#contact)
-    - [Support This Project](#support-this-project)
+    - [Table of Contents](#table-of-contents)
+    - [Important](#important)
+    - [TODO](#todo)
+        - [Next Features](#next-features)
+        - [Drop Features](#drop-features)
+        - [Test](#test)
+    - [Prerequisites](#prerequisites)
+    - [Build with](#build-with)
+    - [Objective](#objective)
+    - [Features](#features)
+        - [🎯 Architecture Highlights](#-architecture-highlights)
+        - [🔐 Authentication \& Security](#-authentication--security)
+        - [📊 Database \& Storage](#-database--storage)
+        - [⚡ Performance \& Optimization](#-performance--optimization)
+        - [🛠 Development Experience](#-development-experience)
+        - [📡 Integrations \& Monitoring](#-integrations--monitoring)
+        - [🔔 Notifications](#-notifications)
+        - [📝 Testing \& Documentation](#-testing--documentation)
+    - [Quick Start](#quick-start)
+    - [Change DB with Minimal Effort](#change-db-with-minimal-effort)
+        - [Supported Databases](#supported-databases)
+    - [Installation](#installation)
+    - [License](#license)
+    - [Contribute](#contribute)
+    - [Contact](#contact)
+        - [Support This Project](#support-this-project)
 
 ## Important
 
 - Stateful Authorization, using `redis-session` and `JWT`.
-- Must run MongoDB as a `replication set` for `database transactions`.
+- PostgreSQL is the primary application database and is required for local development.
 - If you change the environment value of `APP_ENV` to `production`, it will disable Documentation.
 - When using multiple protection decorators, they must be applied in the correct order:
     ```typescript
@@ -115,12 +114,12 @@ This boilerplate is perfect for:
 - Sliding session (Example: 7d expires for a refresh token, can be extends until x day. if not action in 7d then need to re-login)
 
 ### Test
+
 - [ ] Unit test
 - [ ] Integration Test
 - [ ] E2E Test
 - [ ] Stress Test For Benchmark/Performance
 - [ ] Load Test For Benchmark/Performance
-
 
 ## Prerequisites
 
@@ -129,7 +128,7 @@ I assume that everyone who comes here is a **`programmer with intermediate knowl
 1. **[NestJs Fundamentals][ref-nestjs]** - Main framework with decorators, modules, services, and dependency injection
 2. **[TypeScript][ref-typescript]** - Strong typing, interfaces, generics, and advanced TypeScript features
 3. **[Prisma ORM][ref-prisma]** - Modern database toolkit for schema design, migrations, and type-safe queries
-4. **[MongoDB][ref-mongodb]** - NoSQL database concepts, especially **replication sets** for transactions
+4. **[PostgreSQL][ref-postgresql]** - Relational database concepts, transactions, and query planning
 5. **[Redis][ref-redis]** - Caching strategies, session storage, and queue management
 6. **Repository Design Pattern** - Data access layer abstraction for maintainable code
 7. **SOLID Principles** - Clean code architecture and dependency management
@@ -147,7 +146,7 @@ The project is built using the following technologies and versions. We always st
 | NodeJs         | v24.11.x |
 | TypeScript     | v6.0.x   |
 | Prisma         | v6.19.x  |
-| MongoDB        | v8.0.x   |
+| PostgreSQL     | v16.x    |
 | Redis          | v8.0.x   |
 | Docker         | v28.5.x  |
 | Docker Compose | v2.40.x  |
@@ -169,12 +168,13 @@ For more information see [package.json][ref-package-json]
 ### 🎯 Architecture Highlights
 
 - **Repository Pattern** - Clean data access abstraction
-- **SOLID Principles** - Maintainable and testable codebase  
+- **SOLID Principles** - Maintainable and testable codebase
 - **Modular Structure** - Component-based folder organization
 - **12-Factor App** - Cloud-native best practices
 - **Production Ready** - Enterprise-grade security and scalability
 
 ### 🔐 Authentication & Security
+
 Production-ready authentication system with multiple strategies and security layers.
 
 - **JWT Authentication** - ES256 for Access Token, ES512 for Refresh Token with automatic rotation
@@ -187,15 +187,17 @@ Production-ready authentication system with multiple strategies and security lay
 - **Security Headers** - Helmet integration for HTTP security
 
 ### 📊 Database & Storage
-Modern ORM with NoSQL database and file storage capabilities.
+
+Modern ORM with PostgreSQL database and file storage capabilities.
 
 - **Prisma ORM** - Type-safe database toolkit with migrations
-- **MongoDB** - NoSQL database with transaction support (replica set required)
+- **PostgreSQL** - Relational database with transaction support
 - **Redis Caching** - Multi-level caching strategies for performance
 - **AWS S3 Integration** - File storage with presigned URLs
 - **Repository Pattern** - Clean separation of data access layer
 
 ### ⚡ Performance & Optimization
+
 Built for speed and scalability from day one.
 
 - **Background Jobs** - BullMQ queue system for async processing
@@ -205,6 +207,7 @@ Built for speed and scalability from day one.
 - **Feature Flags** - Dynamic feature rollout with A/B testing
 
 ### 🛠 Development Experience
+
 Developer-friendly tooling and best practices.
 
 - **NestJS 11.x** - Latest framework version with full TypeScript support
@@ -217,6 +220,7 @@ Developer-friendly tooling and best practices.
 - **Database Seeding** - Commander-based data population
 
 ### 📡 Integrations & Monitoring
+
 Enterprise-grade integrations for production readiness.
 
 - **Sentry** - Error tracking and performance monitoring
@@ -227,6 +231,7 @@ Enterprise-grade integrations for production readiness.
 - **HashiCorp Vault** - Optional secret management, syncs `.env` ([docs][ref-doc-vault])
 
 ### 🔔 Notifications
+
 Multi-channel notification system for user engagement.
 
 - **Multi-Channel Delivery** - Email, push, in-app, and silent notifications
@@ -238,6 +243,7 @@ Multi-channel notification system for user engagement.
 📖 See [Notification Documentation][ref-doc-notification] for detailed setup and usage.
 
 ### 📝 Testing & Documentation
+
 Comprehensive testing framework and documentation.
 
 - **Jest Testing** - Unit, integration, and e2e test setup
@@ -270,16 +276,16 @@ Thanks to **Repository Pattern** and **Prisma ORM**, switching databases require
 
 ### Supported Databases
 
-| Database | Best For | Transaction Support |
-|----------|----------|---------------------|
-| **MongoDB** | Document-based, flexible schema | ✅ Yes (replica set) |
-| **PostgreSQL** | Relational Database, reliability | ✅ Yes |
+| Database       | Best For                         | Transaction Support |
+| -------------- | -------------------------------- | ------------------- |
+| **PostgreSQL** | Relational Database, reliability | ✅ Yes              |
 
 **Other supported databases:** MySQL, SQLite, SQL Server, CockroachDB
 
 **Migration typically requires:**
+
 - Updating `prisma/schema.prisma` provider
-- Adjusting ID strategy (ObjectId → UUID). Update DatabaseService Code.
+- Adjusting ID strategy and database-specific health checks.
 - Running `npx prisma migrate dev`
 - Running `pnpm migration:seed`
 
@@ -327,7 +333,6 @@ If you find this project helpful and would like to support its development, plea
   </a>
 </div>
 
-
 <!-- REFERENCES -->
 
 <!-- BADGE LINKS -->
@@ -340,7 +345,7 @@ If you find this project helpful and would like to support its development, plea
 [nestjs-shield]: https://img.shields.io/badge/nestjs-%23E0234E.svg?style=for-the-badge&logo=nestjs&logoColor=white
 [nodejs-shield]: https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white
 [typescript-shield]: https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white
-[mongodb-shield]: https://img.shields.io/badge/MongoDB-white?style=for-the-badge&logo=mongodb&logoColor=4EA94B
+[postgresql-shield]: https://img.shields.io/badge/PostgreSQL-white?style=for-the-badge&logo=postgresql&logoColor=4169E1
 [jwt-shield]: https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=JSON%20web%20tokens&logoColor=white
 [jest-shield]: https://img.shields.io/badge/-jest-%23C21325?style=for-the-badge&logo=jest&logoColor=white
 [pnpm-shield]: https://img.shields.io/badge/pnpm-%232C8EBB.svg?style=for-the-badge&logo=pnpm&logoColor=white&color=F9AD00
@@ -369,7 +374,7 @@ If you find this project helpful and would like to support its development, plea
 
 [ref-nestjs]: http://nestjs.com
 [ref-prisma]: https://www.prisma.io
-[ref-mongodb]: https://docs.mongodb.com/
+[ref-postgresql]: https://www.postgresql.org/docs/
 [ref-redis]: https://redis.io
 [ref-bullmq]: https://bullmq.io
 [ref-nodejs]: https://nodejs.org/

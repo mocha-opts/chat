@@ -3,10 +3,8 @@ import { FileUploadSingle } from '@common/file/decorators/file.decorator';
 import { EnumFileExtensionImage } from '@common/file/enums/file.enum';
 import { IFile } from '@common/file/interfaces/file.interface';
 import { FileExtensionPipe } from '@common/file/pipes/file.extension.pipe';
-import {
-    RequestTimeout,
-} from '@common/request/decorators/request.decorator';
-import { RequestIsValidObjectIdPipe } from '@common/request/pipes/request.is-valid-object-id.pipe';
+import { RequestTimeout } from '@common/request/decorators/request.decorator';
+import { RequestIsValidUuidPipe } from '@common/request/pipes/request.is-valid-uuid.pipe';
 import { RequestRequiredPipe } from '@common/request/pipes/request.required.pipe';
 import { Response } from '@common/response/decorators/response.decorator';
 import { IResponseReturn } from '@common/response/interfaces/response.interface';
@@ -228,11 +226,7 @@ export class UserSharedController {
     @Put('/mobile-number/update/:mobileNumberId')
     async updateMobileNumber(
         @AuthJwtPayload('userId') userId: string,
-        @Param(
-            'mobileNumberId',
-            RequestRequiredPipe,
-            RequestIsValidObjectIdPipe
-        )
+        @Param('mobileNumberId', RequestRequiredPipe, RequestIsValidUuidPipe)
         mobileNumberId: string,
         @Body()
         body: UserUpdateMobileNumberRequestDto
@@ -253,11 +247,7 @@ export class UserSharedController {
     @Delete('/mobile-number/delete/:mobileNumberId')
     async deleteMobileNumber(
         @AuthJwtPayload('userId') userId: string,
-        @Param(
-            'mobileNumberId',
-            RequestRequiredPipe,
-            RequestIsValidObjectIdPipe
-        )
+        @Param('mobileNumberId', RequestRequiredPipe, RequestIsValidUuidPipe)
         mobileNumberId: string
     ): Promise<IResponseReturn<UserMobileNumberResponseDto>> {
         return this.userService.deleteMobileNumber(userId, mobileNumberId);

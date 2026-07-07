@@ -7,7 +7,6 @@ The documentation in this directory was written with the assistance of **GitHub 
 Every document has been **manually reviewed and verified** against the actual implementation to ensure accuracy and correctness.
 If you find any discrepancies, please open an issue or submit a pull request.
 
-
 ## Standards & References
 
 This project follows established industry standards and methodologies. The sections below document the specific specs, RFCs, and practices this codebase is built against.
@@ -16,42 +15,42 @@ This project follows established industry standards and methodologies. The secti
 
 This project aligns with the [Twelve-Factor App][ref-12factor] methodology — a set of best practices for building modern, scalable, maintainable server-side applications.
 
-| Factor | How it applies |
-|---|---|
-| Codebase | Single repo, one codebase tracked in Git, multiple deploys via env |
-| Dependencies | All dependencies declared in `package.json`, enforced with PNPM lockfile |
-| Config | All configuration via environment variables, validated at startup via `AppEnvDto` |
-| Backing Services | MongoDB, Redis, AWS S3/SES, Firebase — treated as attached resources via env config |
-| Build, Release, Run | Build (`pnpm build`) is strictly separated from runtime |
-| Processes | Stateless app processes — session and cache state stored in Redis, not in-memory |
-| Port Binding | App self-contained via NestJS HTTP server, port exposed via `APP_PORT` env |
-| Concurrency | Horizontal scaling supported — stateless processes, shared Redis for sessions |
-| Disposability | Fast startup, graceful shutdown — no sticky sessions or local state |
-| Dev/Prod Parity | Same stack (Docker Compose) for local dev and production |
-| Logs | Logs as event streams via Pino to stdout — no log file management in app |
-| Admin Processes | One-off tasks via dedicated migration and seed scripts (`pnpm migration:seed`) |
+| Factor              | How it applies                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| Codebase            | Single repo, one codebase tracked in Git, multiple deploys via env                     |
+| Dependencies        | All dependencies declared in `package.json`, enforced with PNPM lockfile               |
+| Config              | All configuration via environment variables, validated at startup via `AppEnvDto`      |
+| Backing Services    | PostgreSQL, Redis, AWS S3/SES, Firebase — treated as attached resources via env config |
+| Build, Release, Run | Build (`pnpm build`) is strictly separated from runtime                                |
+| Processes           | Stateless app processes — session and cache state stored in Redis, not in-memory       |
+| Port Binding        | App self-contained via NestJS HTTP server, port exposed via `APP_PORT` env             |
+| Concurrency         | Horizontal scaling supported — stateless processes, shared Redis for sessions          |
+| Disposability       | Fast startup, graceful shutdown — no sticky sessions or local state                    |
+| Dev/Prod Parity     | Same stack (Docker Compose) for local dev and production                               |
+| Logs                | Logs as event streams via Pino to stdout — no log file management in app               |
+| Admin Processes     | One-off tasks via dedicated migration and seed scripts (`pnpm migration:seed`)         |
 
 ### Security Standards
 
-| Concern | Standard |
-|---|---|
-| JWT Access Token | ES256 — ECDSA + SHA-256 ([RFC 7518][ref-rfc-7518], [RFC 7519][ref-rfc-7519]) |
-| JWT Refresh Token | ES512 — ECDSA + SHA-512 ([RFC 7518][ref-rfc-7518], [RFC 7519][ref-rfc-7519]) |
-| Two-Factor Auth | TOTP — SHA-1, 6 digits, 30s period ([RFC 6238][ref-rfc-6238]) |
-| Password Hashing | bcrypt — 8 salt rounds |
-| Encryption at Rest | AES-256-CBC (2FA secrets), AES-CBC + PKCS7 (general data) |
-| HTTP Security Headers | [Helmet][ref-helmet] v8 — CSP, Strict-Transport-Security, X-Frame-Options, etc. |
-| CORS | Configurable allowlist with wildcard subdomain support, preflight max-age 24h |
-| Rate Limiting | 100 requests / 60s window — global guard via [@nestjs/throttler][ref-throttler] |
-| Authorization | [CASL][ref-casl] — fine-grained ability-based access control (subject + action) |
-| API Key Auth | Machine-to-machine via `x-api-key` header |
-| Sensitive Data | Auto-redacted in logs (password, token, apiKey) via Pino serializers |
-| Threat Coverage | [OWASP Top 10][ref-owasp] — input validation, injection prevention, auth hardening |
-
+| Concern               | Standard                                                                           |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| JWT Access Token      | ES256 — ECDSA + SHA-256 ([RFC 7518][ref-rfc-7518], [RFC 7519][ref-rfc-7519])       |
+| JWT Refresh Token     | ES512 — ECDSA + SHA-512 ([RFC 7518][ref-rfc-7518], [RFC 7519][ref-rfc-7519])       |
+| Two-Factor Auth       | TOTP — SHA-1, 6 digits, 30s period ([RFC 6238][ref-rfc-6238])                      |
+| Password Hashing      | bcrypt — 8 salt rounds                                                             |
+| Encryption at Rest    | AES-256-CBC (2FA secrets), AES-CBC + PKCS7 (general data)                          |
+| HTTP Security Headers | [Helmet][ref-helmet] v8 — CSP, Strict-Transport-Security, X-Frame-Options, etc.    |
+| CORS                  | Configurable allowlist with wildcard subdomain support, preflight max-age 24h      |
+| Rate Limiting         | 100 requests / 60s window — global guard via [@nestjs/throttler][ref-throttler]    |
+| Authorization         | [CASL][ref-casl] — fine-grained ability-based access control (subject + action)    |
+| API Key Auth          | Machine-to-machine via `x-api-key` header                                          |
+| Sensitive Data        | Auto-redacted in logs (password, token, apiKey) via Pino serializers               |
+| Threat Coverage       | [OWASP Top 10][ref-owasp] — input validation, injection prevention, auth hardening |
 
 ## Table of Contents
 
 ### Getting Started
+
 Start here to get the project running and understand its foundations.
 
 1. [Installation][ref-doc-installation] — Set up the development environment step by step
@@ -60,9 +59,10 @@ Start here to get the project running and understand its foundations.
 4. [Project Structure][ref-doc-project-structure] — Learn the modular architecture and repository design pattern
 
 ### Core
+
 Essential systems that power every feature in the project.
 
-5. [Database][ref-doc-database] — Prisma + MongoDB replica set, transactions, and the Database Module
+5. [Database][ref-doc-database] — Prisma + PostgreSQL, transactions, and the Database Module
 6. [Authentication][ref-doc-authentication] — JWT (ES256/ES512), session lifecycle, API key auth
 7. [Authorization][ref-doc-authorization] — `UserProtected`, `RoleProtected`, `PolicyAbilityProtected`, `TermPolicyAcceptanceProtected`
 8. [Device][ref-doc-device] — Device fingerprinting, `DeviceOwnership`, max 1 session per device
@@ -76,6 +76,7 @@ Essential systems that power every feature in the project.
 16. [Security and Middleware][ref-doc-security-and-middleware] — HTTP middleware layer, headers, rate limiting
 
 ### Advanced
+
 Additional features and integrations for production-grade deployments.
 
 17. [Pagination][ref-doc-pagination] — Offset-based, cursor-based pagination, advanced filtering
@@ -88,10 +89,8 @@ Additional features and integrations for production-grade deployments.
 24. [Presign][ref-doc-presign] — AWS S3 presigned URLs for secure time-limited object access
 25. [Third Party Integration][ref-doc-third-party-integration] — AWS S3/SES, Firebase, Sentry, no-op mode
 26. [Doc][ref-doc-doc] — Swagger/OpenAPI decorators via the Doc Module
-27. [Analytics][ref-doc-analytics] — Planned analytics design using MongoDB aggregation pipelines
+27. [Analytics][ref-doc-analytics] — Planned analytics design, pending PostgreSQL query rewrite
 28. [Vault][ref-doc-vault] — Optional secret management via HashiCorp Vault
-
-
 
 [ref-doc-installation]: installation.md
 [ref-doc-environment]: environment.md
@@ -121,7 +120,6 @@ Additional features and integrations for production-grade deployments.
 [ref-doc-doc]: doc.md
 [ref-doc-analytics]: analytics.md
 [ref-doc-vault]: vault.md
-
 [ref-12factor]: https://12factor.net
 [ref-rfc-7518]: https://datatracker.ietf.org/doc/html/rfc7518
 [ref-rfc-7519]: https://datatracker.ietf.org/doc/html/rfc7519

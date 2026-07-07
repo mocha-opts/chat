@@ -6,7 +6,7 @@ import {
     IPaginationEqual,
     IPaginationQueryOffsetParams,
 } from '@common/pagination/interfaces/pagination.interface';
-import { RequestIsValidObjectIdPipe } from '@common/request/pipes/request.is-valid-object-id.pipe';
+import { RequestIsValidUuidPipe } from '@common/request/pipes/request.is-valid-uuid.pipe';
 import { RequestRequiredPipe } from '@common/request/pipes/request.required.pipe';
 import {
     Response,
@@ -79,7 +79,7 @@ export class SessionAdminController {
             Prisma.SessionSelect,
             Prisma.SessionWhereInput
         >,
-        @Param('userId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('userId', RequestRequiredPipe, RequestIsValidUuidPipe)
         userId: string,
         @PaginationQueryFilterEqualBoolean('isRevoked')
         isRevoked?: Record<string, IPaginationEqual>
@@ -111,16 +111,12 @@ export class SessionAdminController {
     @ApiKeyProtected()
     @Delete('/revoke/:sessionId')
     async revoke(
-        @Param('userId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('userId', RequestRequiredPipe, RequestIsValidUuidPipe)
         userId: string,
-        @Param('sessionId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('sessionId', RequestRequiredPipe, RequestIsValidUuidPipe)
         sessionId: string,
         @AuthJwtPayload('userId') revokedBy: string
     ): Promise<IResponseReturn<void>> {
-        return this.sessionService.revokeByAdmin(
-            userId,
-            sessionId,
-            revokedBy
-        );
+        return this.sessionService.revokeByAdmin(userId, sessionId, revokedBy);
     }
 }

@@ -179,6 +179,10 @@ export class TermPolicyRepository {
         { ipAddress, userAgent, geoLocation }: IRequestLog
     ): Promise<ITermPolicyUserAcceptance> {
         const acceptedAt = this.helperService.dateCreate();
+        const termPolicy = user.termPolicy as Record<
+            EnumTermPolicyType,
+            boolean
+        >;
         const [userAcceptance] = await this.databaseService.$transaction([
             this.databaseService.termPolicyUserAcceptance.create({
                 data: {
@@ -200,6 +204,7 @@ export class TermPolicyRepository {
                 },
                 data: {
                     termPolicy: {
+                        ...termPolicy,
                         [type]: true,
                     },
                     activityLogs: {
@@ -290,7 +295,7 @@ export class TermPolicyRepository {
                 contents: {
                     push: this.databaseUtil.toPlainObject<
                         TermContentDto,
-                        Prisma.TermPolicyContentCreateInput
+                        Prisma.InputJsonValue
                     >(newContent),
                 },
                 updatedBy,
@@ -334,21 +339,18 @@ export class TermPolicyRepository {
                 data: {
                     status: EnumTermPolicyStatus.published,
                     publishedAt: this.helperService.dateCreate(),
-                    contents,
+                    contents: this.databaseUtil.toPlainArray(contents),
                     updatedBy,
                 },
             }),
-            this.databaseService.user.updateMany({
-                where: {
-                    deletedAt: null,
-                    status: EnumUserStatus.active,
-                },
-                data: {
-                    termPolicy: {
-                        [type]: false,
-                    },
-                },
-            }),
+            this.databaseService.$executeRaw`
+                UPDATE "Users"
+                SET "termPolicy" = jsonb_set("termPolicy"::jsonb, ARRAY[${type}], 'false'::jsonb, true),
+                    "updatedBy" = ${updatedBy},
+                    "updatedAt" = NOW()
+                WHERE "deletedAt" IS NULL
+                    AND "status" = ${EnumUserStatus.active}::"EnumUserStatus"
+            `,
         ]);
 
         return termPolicy;

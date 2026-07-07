@@ -55,7 +55,7 @@ import {
     IResponseReturn,
 } from '@common/response/interfaces/response.interface';
 import { UserListResponseDto } from '@modules/user/dtos/response/user.list.response.dto';
-import { RequestIsValidObjectIdPipe } from '@common/request/pipes/request.is-valid-object-id.pipe';
+import { RequestIsValidUuidPipe } from '@common/request/pipes/request.is-valid-uuid.pipe';
 import { RequestRequiredPipe } from '@common/request/pipes/request.required.pipe';
 import { UserProfileResponseDto } from '@modules/user/dtos/response/user.profile.response.dto';
 import {
@@ -70,9 +70,7 @@ import {
 } from '@modules/user/docs/user.admin.doc';
 import { UserCreateRequestDto } from '@modules/user/dtos/request/user.create.request.dto';
 import { DatabaseIdResponseDto } from '@common/database/dtos/response/database.id.response.dto';
-import {
-    RequestTimeout,
-} from '@common/request/decorators/request.decorator';
+import { RequestTimeout } from '@common/request/decorators/request.decorator';
 import { UserUpdateStatusRequestDto } from '@modules/user/dtos/request/user.update-status.request.dto';
 import { ActivityLog } from '@modules/activity-log/decorators/activity-log.decorator';
 import { TermPolicyAcceptanceProtected } from '@modules/term-policy/decorators/term-policy.decorator';
@@ -142,7 +140,7 @@ export class UserAdminController {
     @ApiKeyProtected()
     @Get('/get/:userId')
     async get(
-        @Param('userId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('userId', RequestRequiredPipe, RequestIsValidUuidPipe)
         userId: string
     ): Promise<IResponseReturn<UserProfileResponseDto>> {
         return this.userService.getOne(userId);
@@ -166,10 +164,7 @@ export class UserAdminController {
         body: UserCreateRequestDto,
         @AuthJwtPayload('userId') createdBy: string
     ): Promise<IResponseReturn<DatabaseIdResponseDto>> {
-        return this.userService.createByAdmin(
-            body,
-            createdBy
-        );
+        return this.userService.createByAdmin(body, createdBy);
     }
 
     @UserAdminUpdateStatusDoc()
@@ -186,16 +181,12 @@ export class UserAdminController {
     @ApiKeyProtected()
     @Patch('/update/:userId/status')
     async updateStatus(
-        @Param('userId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('userId', RequestRequiredPipe, RequestIsValidUuidPipe)
         userId: string,
         @AuthJwtPayload('userId') updatedBy: string,
         @Body() body: UserUpdateStatusRequestDto
     ): Promise<IResponseReturn<void>> {
-        return this.userService.updateStatusByAdmin(
-            userId,
-            body,
-            updatedBy
-        );
+        return this.userService.updateStatusByAdmin(userId, body, updatedBy);
     }
 
     @UserAdminUpdatePasswordDoc()
@@ -212,14 +203,11 @@ export class UserAdminController {
     @ApiKeyProtected()
     @Put('/update/:userId/password')
     async updatePassword(
-        @Param('userId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('userId', RequestRequiredPipe, RequestIsValidUuidPipe)
         userId: string,
         @AuthJwtPayload('userId') updatedBy: string
     ): Promise<IResponseReturn<void>> {
-        return this.userService.updatePasswordByAdmin(
-            userId,
-            updatedBy
-        );
+        return this.userService.updatePasswordByAdmin(userId, updatedBy);
     }
 
     @UserAdminResetTwoFactorDoc()
@@ -236,7 +224,7 @@ export class UserAdminController {
     @ApiKeyProtected()
     @Patch('/update/:userId/2fa/reset')
     async resetTwoFactorByAdmin(
-        @Param('userId', RequestRequiredPipe, RequestIsValidObjectIdPipe)
+        @Param('userId', RequestRequiredPipe, RequestIsValidUuidPipe)
         userId: string,
         @AuthJwtPayload('userId') updatedBy: string
     ): Promise<void> {

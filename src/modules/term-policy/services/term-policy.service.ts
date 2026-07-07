@@ -68,7 +68,10 @@ export class TermPolicyService implements ITermPolicyService {
             throw new AuthJwtAccessTokenInvalidException();
         }
 
-        const { termPolicy } = user;
+        const termPolicy = user.termPolicy as Record<
+            EnumTermPolicyType,
+            boolean
+        >;
 
         const defaultTermPolicies = [
             EnumTermPolicyType.termsOfService,
@@ -79,7 +82,7 @@ export class TermPolicyService implements ITermPolicyService {
                 ? defaultTermPolicies
                 : requiredTermPolicies;
 
-        if (!requiredTermPolicies.every(type => termPolicy[type])) {
+        if (!requiredTermPolicies.every(type => termPolicy[type] === true)) {
             throw new TermPolicyRequiredInvalidException();
         }
     }

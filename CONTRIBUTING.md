@@ -28,14 +28,14 @@ This project follows a [Code of Conduct][ref-code-of-conduct]. By participating,
 
 1. **Fork** the repository
 2. **Clone** your fork locally
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/ack-nestjs-boilerplate.git
-   cd ack-nestjs-boilerplate
-   ```
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/ack-nestjs-boilerplate.git
+    cd ack-nestjs-boilerplate
+    ```
 3. Add upstream remote
-   ```bash
-   git remote add upstream https://github.com/andrechristikan/ack-nestjs-boilerplate.git
-   ```
+    ```bash
+    git remote add upstream https://github.com/andrechristikan/ack-nestjs-boilerplate.git
+    ```
 
 ---
 
@@ -54,13 +54,13 @@ This project follows a [Code of Conduct][ref-code-of-conduct]. By participating,
 
 ### Prerequisites
 
-| Tool | Version |
-|------|---------|
-| Node.js | >= 24.11.0 |
-| pnpm | >= 10.25.0 |
-| Docker | Latest stable |
-| MongoDB | Replication set (required for transactions) |
-| Redis | Latest stable |
+| Tool       | Version                      |
+| ---------- | ---------------------------- |
+| Node.js    | >= 24.11.0                   |
+| pnpm       | >= 10.25.0                   |
+| Docker     | Latest stable                |
+| PostgreSQL | Primary application database |
+| Redis      | Latest stable                |
 
 ### Steps
 
@@ -71,7 +71,7 @@ pnpm install
 # Copy environment file
 cp .env.example .env
 
-# Start infrastructure (MongoDB + Redis)
+# Start infrastructure (PostgreSQL + Redis)
 docker-compose up -d
 
 # Run in development mode
@@ -88,14 +88,14 @@ This project uses **TypeScript** with strict mode. Please follow these standards
 - Use **Prisma ORM** for all database interactions — do not bypass the repository layer
 - All new modules must follow the existing **modular structure** in `src/`
 - Run linter before submitting:
-  ```bash
-  pnpm lint
-  pnpm lint:fix
-  ```
+    ```bash
+    pnpm lint
+    pnpm lint:fix
+    ```
 - Run tests:
-  ```bash
-  pnpm test
-  ```
+    ```bash
+    pnpm test
+    ```
 - No `any` types unless absolutely unavoidable — justify it in a comment
 - All public methods/functions should have proper TypeScript typings
 - **Strict null convention** — `undefined` is only allowed at the input boundary (Request DTO body/form, Query DTO); all other layers use `T | null`. Exceptions: request lifecycle fields (`__user?`, `__apiKey?`), external spec fields (JWT claims, Prisma generated types), exception/options interfaces (e.g. `IAppException`), response DTO structural/wrapper fields (e.g. `data?` on `ResponseDto<T>`), and service/util additive filter params
@@ -116,19 +116,20 @@ This project follows [Conventional Commits][ref-conventional-commits]:
 
 **Types:**
 
-| Type | When to use |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `hotfix` | Urgent production fix |
-| `doc` | Documentation changes |
+| Type       | When to use                    |
+| ---------- | ------------------------------ |
+| `feat`     | New feature                    |
+| `fix`      | Bug fix                        |
+| `hotfix`   | Urgent production fix          |
+| `doc`      | Documentation changes          |
 | `refactor` | Code refactor (no feature/fix) |
-| `test` | Adding or updating tests |
-| `ci` | CI/CD pipeline changes |
-| `chore` | Build process, dependencies |
-| `revert` | Revert a previous commit |
+| `test`     | Adding or updating tests       |
+| `ci`       | CI/CD pipeline changes         |
+| `chore`    | Build process, dependencies    |
+| `revert`   | Revert a previous commit       |
 
 **Examples:**
+
 ```
 feat(auth): add refresh token rotation
 fix(user): resolve pagination offset issue
@@ -140,9 +141,9 @@ doc(readme): update docker setup instructions
 ## Pull Request Process
 
 1. Create a branch from `main`:
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
+    ```bash
+    git checkout -b feat/your-feature-name
+    ```
 2. Make your changes
 3. Ensure all tests pass and linting is clean
 4. Push and open a PR against `main`
@@ -150,6 +151,7 @@ doc(readme): update docker setup instructions
 6. Wait for review — at least **1 maintainer approval** is required to merge
 
 **PR will be rejected if:**
+
 - Tests are failing
 - Linting errors exist
 - No description of what/why changes were made

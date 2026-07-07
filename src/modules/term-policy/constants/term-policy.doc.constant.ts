@@ -1,6 +1,9 @@
 import { ApiParamOptions, ApiQueryOptions } from '@nestjs/swagger';
 import { faker } from '@faker-js/faker';
-import { EnumTermPolicyStatus, EnumTermPolicyType } from '@generated/prisma-client';
+import {
+    EnumTermPolicyStatus,
+    EnumTermPolicyType,
+} from '@generated/prisma-client';
 import { EnumMessageLanguage } from '@common/message/enums/message.enum';
 
 export const TermPolicyDocParamsId: ApiParamOptions[] = [
@@ -9,7 +12,7 @@ export const TermPolicyDocParamsId: ApiParamOptions[] = [
         allowEmptyValue: false,
         required: true,
         type: 'string',
-        example: faker.database.mongodbObjectId(),
+        example: faker.string.uuid(),
     },
 ];
 

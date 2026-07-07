@@ -23,21 +23,21 @@ All environment variables are validated using the `AppEnvDto` class to ensure re
 - [Environment Validation](#environment-validation)
 - [Example Configuration](#example-configuration)
 - [Environment Variables](#environment-variables)
-  - [Application Settings](#application-settings)
-  - [Home/Organization Settings](#homeorganization-settings)
-  - [HTTP Server Settings](#http-server-settings)
-  - [Logging Settings](#logging-settings)
-  - [CORS Settings](#cors-settings)
-  - [URL Versioning Settings](#url-versioning-settings)
-  - [Database Settings](#database-settings)
-  - [Authentication Settings](#authentication-settings)
-  - [Social Authentication Settings](#social-authentication-settings)
-  - [Two-Factor Authentication Settings](#two-factor-authentication-settings)
-  - [AWS Settings](#aws-settings)
-  - [Email Settings](#email-settings)
-  - [Firebase Settings](#firebase-settings)
-  - [Redis Settings](#redis-settings)
-  - [Debug Settings](#debug-settings)
+    - [Application Settings](#application-settings)
+    - [Home/Organization Settings](#homeorganization-settings)
+    - [HTTP Server Settings](#http-server-settings)
+    - [Logging Settings](#logging-settings)
+    - [CORS Settings](#cors-settings)
+    - [URL Versioning Settings](#url-versioning-settings)
+    - [Database Settings](#database-settings)
+    - [Authentication Settings](#authentication-settings)
+    - [Social Authentication Settings](#social-authentication-settings)
+    - [Two-Factor Authentication Settings](#two-factor-authentication-settings)
+    - [AWS Settings](#aws-settings)
+    - [Email Settings](#email-settings)
+    - [Firebase Settings](#firebase-settings)
+    - [Redis Settings](#redis-settings)
+    - [Debug Settings](#debug-settings)
 
 ## Environment Validation
 
@@ -50,12 +50,12 @@ const errors = await validate(classEnv);
 if (errors.length > 0) {
     const messageService = app.get(MessageService);
     const errorsMessage = messageService.setValidationMessage(errors);
-    
+
     logger.error(
         `Env Variable Invalid: ${JSON.stringify(errorsMessage)}`,
         'NestApplication'
     );
-    
+
     throw new Error('Env Variable Invalid', {
         cause: errorsMessage,
     });
@@ -103,7 +103,7 @@ URL_VERSIONING_ENABLE=true
 URL_VERSION=1
 
 # Database
-DATABASE_URL=mongodb://localhost:27017/ACKNestJs?retryWrites=true&w=majority&replicaSet=rs0
+DATABASE_URL=postgresql://ack:ack_password@localhost:5432/ACKNestJs?schema=public
 DATABASE_DEBUG=true
 
 # JWT Authentication
@@ -174,102 +174,117 @@ All environment variables are validated using the `AppEnvDto` class to ensure re
 
 ### Application Settings
 
-**`APP_NAME`** *(required)*  
+**`APP_NAME`** _(required)_
 The name of your application. Used throughout the system for identification.
+
 ```bash
 APP_NAME=ACKNestJs
 ```
 
-**`APP_ENV`** *(required)*  
+**`APP_ENV`** _(required)_
 The environment the application is running in. Possible values: `development`, `staging`, `production`, `local`
+
 ```bash
 APP_ENV=local
 ```
 
-**`APP_LANGUAGE`** *(required)*  
+**`APP_LANGUAGE`** _(required)_
 Default language for the application. Validated against `EnumMessageLanguage`; currently only `en` is supported.
+
 ```bash
 APP_LANGUAGE=en
 ```
 
-**`APP_TIMEZONE`** *(required)*  
+**`APP_TIMEZONE`** _(required)_
 Default timezone for date operations. Validated against `EnumRequestTimezone`; currently only `Asia/Jakarta` is supported.
+
 ```bash
 APP_TIMEZONE=Asia/Jakarta
 ```
 
-**`APP_ENCRYPTION_SECRET_KEY`** *(required)*  
+**`APP_ENCRYPTION_SECRET_KEY`** _(required)_
 Secret key used to derive an AES-256 encryption key for encrypting sensitive data. Must be 32-64 characters (enforced by `@MinLength(32)` / `@MaxLength(64)`). Empty by default — startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.
+
 ```bash
 APP_ENCRYPTION_SECRET_KEY=<your_app_encryption_secret_key>
 ```
 
 ### Home/Organization Settings
 
-**`HOME_NAME`** *(required)*  
+**`HOME_NAME`** _(required)_
 Display name for your organization/home page.
+
 ```bash
 HOME_NAME=ACKNestJs
 ```
 
-**`HOME_URL`** *(required)*  
+**`HOME_URL`** _(required)_
 URL for your home/landing page.
+
 ```bash
 HOME_URL=https://example.com
 ```
 
 ### HTTP Server Settings
 
-**`HTTP_HOST`** *(required)*  
+**`HTTP_HOST`** _(required)_
 Address to bind the HTTP server to. Accepts a hostname such as `localhost` or an IPv4 literal like `0.0.0.0` or `127.0.0.1`.
+
 ```bash
 HTTP_HOST=localhost
 ```
 
-**`HTTP_PORT`** *(required)*  
+**`HTTP_PORT`** _(required)_
 Port number for the HTTP server.
+
 ```bash
 HTTP_PORT=3000
 ```
 
 ### Logging Settings
 
-**`LOGGER_ENABLE`** *(required)*  
+**`LOGGER_ENABLE`** _(required)_
 Enable or disable application logging.
+
 ```bash
 LOGGER_ENABLE=true
 ```
 
-**`LOGGER_LEVEL`** *(required)*  
+**`LOGGER_LEVEL`** _(required)_
 Logging level. Validated against `EnumLoggerLevel`. Options: `error`, `warn`, `info`, `verbose`, `debug`, `silly`
+
 ```bash
 LOGGER_LEVEL=debug
 ```
 
-**`LOGGER_INTO_FILE`** *(required)*  
+**`LOGGER_INTO_FILE`** _(required)_
 Whether to write logs to files.
+
 ```bash
 LOGGER_INTO_FILE=true
 ```
 
-**`LOGGER_PRETTIER`** *(required)*  
+**`LOGGER_PRETTIER`** _(required)_
 Whether to format logs in a prettier, readable way.
+
 ```bash
 LOGGER_PRETTIER=true
 ```
 
-**`LOGGER_AUTO`** *(required)*  
+**`LOGGER_AUTO`** _(required)_
 Enable automatic logging features.
+
 ```bash
 LOGGER_AUTO=false
 ```
 
 ### CORS Settings
 
-**`CORS_ALLOWED_ORIGIN`** *(required)*  
+**`CORS_ALLOWED_ORIGIN`** _(required)_
 Comma-separated list of allowed CORS origins. Supports subdomain wildcards and explicit ports, but not port wildcards.
 
 **Syntax:**
+
 - `*` — Allow all origins (credentials disabled)
 - `hostname` — Single origin (e.g., `example.com`)
 - `*.subdomain` — Wildcard subdomains (e.g., `*.example.com` matches `api.example.com` and `example.com`)
@@ -277,6 +292,7 @@ Comma-separated list of allowed CORS origins. Supports subdomain wildcards and e
 - `*.subdomain:port` — Wildcard with explicit port (e.g., `*.example.com:3000`)
 
 **Examples:**
+
 ```bash
 # Allow all origins (development only) — credentials NOT allowed
 CORS_ALLOWED_ORIGIN=*
@@ -295,6 +311,7 @@ CORS_ALLOWED_ORIGIN=*.example.com,api.production.com:443,localhost:3000
 ```
 
 **Port Matching Behavior:**
+
 ```bash
 # ✅ SUPPORTED — Exact port matching
 CORS_ALLOWED_ORIGIN=api.example.com:3000  # Matches: http://api.example.com:3000, https://api.example.com:3000
@@ -307,10 +324,12 @@ CORS_ALLOWED_ORIGIN=api.example.com       # Matches: http://api.example.com, htt
 ```
 
 **Protocol Behavior:**
+
 - Both `http` and `https` are automatically allowed for the same origin
 - Protocol is **not** part of the pattern (no need to specify `https://` in the pattern)
 
 **Credentials Behavior:**
+
 - **Wildcard (`*`)**: Credentials are **disabled** (CORS security restriction)
 - **Specific origins**: Credentials are **enabled**
 
@@ -319,110 +338,123 @@ CORS_ALLOWED_ORIGIN=api.example.com       # Matches: http://api.example.com, htt
 
 ### URL Versioning Settings
 
-**`URL_VERSIONING_ENABLE`** *(required)*  
+**`URL_VERSIONING_ENABLE`** _(required)_
 Enable URL versioning for your API (e.g., `/api/v1/users`).
+
 ```bash
 URL_VERSIONING_ENABLE=true
 ```
 
-**`URL_VERSION`** *(required)*  
+**`URL_VERSION`** _(required)_
 Default API version number.
+
 ```bash
 URL_VERSION=1
 ```
 
 ### Database Settings
 
-**`DATABASE_URL`** *(required)*  
-MongoDB connection string. Must include replica set for transactions.
-```bash
-# Local MongoDB with replica set
-DATABASE_URL=mongodb://localhost:27017/ACKNestJs?retryWrites=true&w=majority&replicaSet=rs0
+**`DATABASE_URL`** _(required)_
+PostgreSQL connection string.
 
-# MongoDB Atlas example
-# DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/ACKNestJs
+```bash
+# Local PostgreSQL
+DATABASE_URL=postgresql://ack:ack_password@localhost:5432/ACKNestJs?schema=public
 ```
 
-**`DATABASE_DEBUG`** *(required)*  
+**`DATABASE_DEBUG`** _(required)_
 Enable database debug mode to log all queries.
+
 ```bash
 DATABASE_DEBUG=true
 ```
 
 ### Authentication Settings
 
-**`AUTH_JWT_ISSUER`** *(required)*  
+**`AUTH_JWT_ISSUER`** _(required)_
 JWT issuer claim value (usually your domain).
+
 ```bash
 AUTH_JWT_ISSUER=https://example.com
 ```
 
-**`AUTH_JWT_AUDIENCE`** *(required)*  
+**`AUTH_JWT_AUDIENCE`** _(required)_
 JWT audience claim value (usually your application name).
+
 ```bash
 AUTH_JWT_AUDIENCE=ACKNestJs
 ```
 
 #### Access Token Settings
 
-**`AUTH_JWT_ACCESS_TOKEN_JWKS_URI`** *(required)*  
+**`AUTH_JWT_ACCESS_TOKEN_JWKS_URI`** _(required)_
 Public URI where access token JWKS is hosted.
+
 ```bash
 AUTH_JWT_ACCESS_TOKEN_JWKS_URI=http://localhost:3011/.well-known/access-jwks.json
 ```
 
-**`AUTH_JWT_ACCESS_TOKEN_KID`** *(required)*  
+**`AUTH_JWT_ACCESS_TOKEN_KID`** _(required)_
 Key ID for access token. Generated automatically by `pnpm generate:keys`.
+
 ```bash
 AUTH_JWT_ACCESS_TOKEN_KID=<your_jwt_access_token_kid>
 ```
 
-**`AUTH_JWT_ACCESS_TOKEN_PRIVATE_KEY`** *(required)*  
+**`AUTH_JWT_ACCESS_TOKEN_PRIVATE_KEY`** _(required)_
 Private key content for signing access tokens.
+
 ```bash
 AUTH_JWT_ACCESS_TOKEN_PRIVATE_KEY=<your_jwt_access_token_private_key>
 ```
 
-**`AUTH_JWT_ACCESS_TOKEN_PUBLIC_KEY`** *(required)*  
+**`AUTH_JWT_ACCESS_TOKEN_PUBLIC_KEY`** _(required)_
 Public key content for verifying access tokens.
+
 ```bash
 AUTH_JWT_ACCESS_TOKEN_PUBLIC_KEY=<your_jwt_access_token_public_key>
 ```
 
-**`AUTH_JWT_ACCESS_TOKEN_EXPIRED`** *(required)*  
+**`AUTH_JWT_ACCESS_TOKEN_EXPIRED`** _(required)_
 Access token expiration time. Format: `1h`, `30m`, `2d`
+
 ```bash
 AUTH_JWT_ACCESS_TOKEN_EXPIRED=1h
 ```
 
 #### Refresh Token Settings
 
-**`AUTH_JWT_REFRESH_TOKEN_JWKS_URI`** *(required)*  
+**`AUTH_JWT_REFRESH_TOKEN_JWKS_URI`** _(required)_
 Public URI where refresh token JWKS is hosted.
+
 ```bash
 AUTH_JWT_REFRESH_TOKEN_JWKS_URI=http://localhost:3011/.well-known/refresh-jwks.json
 ```
 
-**`AUTH_JWT_REFRESH_TOKEN_KID`** *(required)*  
+**`AUTH_JWT_REFRESH_TOKEN_KID`** _(required)_
 Key ID for refresh token. Generated automatically by `pnpm generate:keys`.
+
 ```bash
 AUTH_JWT_REFRESH_TOKEN_KID=<your_jwt_refresh_token_kid>
 ```
 
-**`AUTH_JWT_REFRESH_TOKEN_PRIVATE_KEY`** *(required)*  
+**`AUTH_JWT_REFRESH_TOKEN_PRIVATE_KEY`** _(required)_
 Private key content for signing refresh tokens.
+
 ```bash
 AUTH_JWT_REFRESH_TOKEN_PRIVATE_KEY=<your_jwt_refresh_token_private_key>
 ```
 
-**`AUTH_JWT_REFRESH_TOKEN_PUBLIC_KEY`** *(required)*  
+**`AUTH_JWT_REFRESH_TOKEN_PUBLIC_KEY`** _(required)_
 Public key content for verifying refresh tokens.
+
 ```bash
 AUTH_JWT_REFRESH_TOKEN_PUBLIC_KEY=<your_jwt_refresh_token_public_key>
 ```
 
-**`AUTH_JWT_REFRESH_TOKEN_EXPIRED`** *(required)*  
+**`AUTH_JWT_REFRESH_TOKEN_EXPIRED`** _(required)_
 Refresh token expiration time. Format: `7d`, `30d`, `90d`
+
 ```bash
 AUTH_JWT_REFRESH_TOKEN_EXPIRED=30d
 ```
@@ -432,40 +464,46 @@ AUTH_JWT_REFRESH_TOKEN_EXPIRED=30d
 > [!NOTE]
 > All social authentication settings are optional. Leave empty if not using social login.
 
-**`AUTH_SOCIAL_GOOGLE_CLIENT_ID`** *(optional)*  
+**`AUTH_SOCIAL_GOOGLE_CLIENT_ID`** _(optional)_
 Google OAuth client ID.
+
 ```bash
 AUTH_SOCIAL_GOOGLE_CLIENT_ID=
 ```
 
-**`AUTH_SOCIAL_GOOGLE_CLIENT_SECRET`** *(optional)*  
+**`AUTH_SOCIAL_GOOGLE_CLIENT_SECRET`** _(optional)_
 Google OAuth client secret.
+
 ```bash
 AUTH_SOCIAL_GOOGLE_CLIENT_SECRET=
 ```
 
-**`AUTH_SOCIAL_APPLE_CLIENT_ID`** *(optional)*  
+**`AUTH_SOCIAL_APPLE_CLIENT_ID`** _(optional)_
 Apple OAuth client ID.
+
 ```bash
 AUTH_SOCIAL_APPLE_CLIENT_ID=
 ```
 
-**`AUTH_SOCIAL_APPLE_SIGN_IN_CLIENT_ID`** *(optional)*  
+**`AUTH_SOCIAL_APPLE_SIGN_IN_CLIENT_ID`** _(optional)_
 Apple Sign In client ID.
+
 ```bash
 AUTH_SOCIAL_APPLE_SIGN_IN_CLIENT_ID=
 ```
 
 ### Two-Factor Authentication Settings
 
-**`AUTH_TWO_FACTOR_ISSUER`** *(required)*  
-Issuer name displayed in authenticator apps. Empty by default — startup validation rejects an unset value.  
+**`AUTH_TWO_FACTOR_ISSUER`** _(required)_
+Issuer name displayed in authenticator apps. Empty by default — startup validation rejects an unset value.
+
 ```bash
 AUTH_TWO_FACTOR_ISSUER=ACKNestJsTwoFactor
 ```
 
-**`AUTH_TWO_FACTOR_ENCRYPTION_KEY`** *(required)*  
-Secret used to derive an AES-256 key for encrypting TOTP secrets (recommended 32+ chars). Empty by default — startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.  
+**`AUTH_TWO_FACTOR_ENCRYPTION_KEY`** _(required)_
+Secret used to derive an AES-256 key for encrypting TOTP secrets (recommended 32+ chars). Empty by default — startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.
+
 ```bash
 AUTH_TWO_FACTOR_ENCRYPTION_KEY=<your_two_factor_encryption_key>
 ```
@@ -477,92 +515,106 @@ AUTH_TWO_FACTOR_ENCRYPTION_KEY=<your_two_factor_encryption_key>
 
 #### S3 Configuration
 
-**`AWS_S3_IAM_CREDENTIAL_KEY`** *(optional/required for file uploads)*  
+**`AWS_S3_IAM_CREDENTIAL_KEY`** _(optional/required for file uploads)_
 AWS IAM access key ID for S3 bucket operations.
+
 ```bash
 AWS_S3_IAM_CREDENTIAL_KEY=
 ```
 
-**`AWS_S3_IAM_CREDENTIAL_SECRET`** *(optional/required for file uploads)*  
+**`AWS_S3_IAM_CREDENTIAL_SECRET`** _(optional/required for file uploads)_
 AWS IAM secret access key for S3 bucket operations.
+
 ```bash
 AWS_S3_IAM_CREDENTIAL_SECRET=
 ```
 
-**`AWS_S3_IAM_ARN`** *(required when S3 credentials are set)*  
+**`AWS_S3_IAM_ARN`** _(required when S3 credentials are set)_
 AWS IAM Role ARN for S3 operations. Used for role-based access control and temporary credentials. Validation requires it whenever `AWS_S3_IAM_CREDENTIAL_KEY` or `AWS_S3_IAM_CREDENTIAL_SECRET` is provided.
+
 ```bash
 AWS_S3_IAM_ARN=
 ```
 
 > [!TIP]
 > **Best Practice**: Using IAM Role ARN (`AWS_S3_IAM_ARN`) is recommended over long-lived credentials for production environments as it provides:
+>
 > - Temporary security credentials
 > - Better security through role assumption
 > - Fine-grained access control
 > - Automatic credential rotation
 
-**`AWS_S3_REGION`** *(optional/required for file uploads)*  
+**`AWS_S3_REGION`** _(optional/required for file uploads)_
 AWS region for S3 services.
+
 ```bash
 AWS_S3_REGION=ap-southeast-3
 ```
 
-**`AWS_S3_PUBLIC_BUCKET`** *(optional/required for file uploads)*  
+**`AWS_S3_PUBLIC_BUCKET`** _(optional/required for file uploads)_
 Name of the public S3 bucket for file storage.
+
 ```bash
 AWS_S3_PUBLIC_BUCKET=
 ```
 
-**`AWS_S3_PUBLIC_CDN`** *(optional)*  
+**`AWS_S3_PUBLIC_CDN`** _(optional)_
 CloudFront CDN URL for public bucket.
+
 ```bash
 AWS_S3_PUBLIC_CDN=
 ```
 
 #### S3 Private Bucket (for private files)
 
-**`AWS_S3_PRIVATE_BUCKET`** *(optional/required for private file uploads)*  
+**`AWS_S3_PRIVATE_BUCKET`** _(optional/required for private file uploads)_
 Name of the private S3 bucket for secure file storage.
+
 ```bash
 AWS_S3_PRIVATE_BUCKET=
 ```
 
-**`AWS_S3_PRIVATE_CDN`** *(optional)*  
+**`AWS_S3_PRIVATE_CDN`** _(optional)_
 CloudFront CDN URL for private bucket.
+
 ```bash
 AWS_S3_PRIVATE_CDN=
 ```
 
 #### SES (Email Service)
 
-**`AWS_SES_IAM_CREDENTIAL_KEY`** *(optional/required for email features)*  
+**`AWS_SES_IAM_CREDENTIAL_KEY`** _(optional/required for email features)_
 AWS IAM access key ID for SES email service.
+
 ```bash
 AWS_SES_IAM_CREDENTIAL_KEY=
 ```
 
-**`AWS_SES_IAM_CREDENTIAL_SECRET`** *(optional/required for email features)*  
+**`AWS_SES_IAM_CREDENTIAL_SECRET`** _(optional/required for email features)_
 AWS IAM secret access key for SES email service.
+
 ```bash
 AWS_SES_IAM_CREDENTIAL_SECRET=
 ```
 
-**`AWS_SES_IAM_ARN`** *(required when SES credentials are set)*  
+**`AWS_SES_IAM_ARN`** _(required when SES credentials are set)_
 AWS IAM Role ARN for SES operations. Used for role-based access control and temporary credentials. Validation requires it whenever `AWS_SES_IAM_CREDENTIAL_KEY` or `AWS_SES_IAM_CREDENTIAL_SECRET` is provided.
+
 ```bash
 AWS_SES_IAM_ARN=
 ```
 
 > [!TIP]
 > **Best Practice**: Using IAM Role ARN (`AWS_SES_IAM_ARN`) is recommended over long-lived credentials for production environments as it provides:
+>
 > - Temporary security credentials
 > - Better security through role assumption
 > - Fine-grained access control
 > - Automatic credential rotation
 
-**`AWS_SES_REGION`** *(optional/required for email features)*  
+**`AWS_SES_REGION`** _(optional/required for email features)_
 AWS region for SES service.
+
 ```bash
 AWS_SES_REGION=ap-southeast-3
 ```
@@ -572,20 +624,23 @@ AWS_SES_REGION=ap-southeast-3
 > [!NOTE]
 > Email settings are optional.
 
-**`EMAIL_NO_REPLY`** *(optional/required for email features)*  
+**`EMAIL_NO_REPLY`** _(optional/required for email features)_
 Sender email address used for no-reply emails (e.g., transactional, notifications).
+
 ```bash
 EMAIL_NO_REPLY=no-reply@mail.com
 ```
 
-**`EMAIL_SUPPORT`** *(optional/required for email features)*  
+**`EMAIL_SUPPORT`** _(optional/required for email features)_
 Support email address shown in email templates.
+
 ```bash
 EMAIL_SUPPORT=support@mail.com
 ```
 
-**`EMAIL_ADMIN`** *(optional/required for email features)*  
+**`EMAIL_ADMIN`** _(optional/required for email features)_
 Admin email address for internal notifications.
+
 ```bash
 EMAIL_ADMIN=admin@mail.com
 ```
@@ -595,47 +650,51 @@ EMAIL_ADMIN=admin@mail.com
 > [!NOTE]
 > Firebase settings are optional. Required only if push notification features are enabled.
 
-**`FIREBASE_PROJECT_ID`** *(optional/required for push notifications)*  
+**`FIREBASE_PROJECT_ID`** _(optional/required for push notifications)_
 Firebase project ID from your Firebase console.
+
 ```bash
 FIREBASE_PROJECT_ID=
 ```
 
-**`FIREBASE_CLIENT_EMAIL`** *(optional/required for push notifications)*  
+**`FIREBASE_CLIENT_EMAIL`** _(optional/required for push notifications)_
 Firebase service account client email.
+
 ```bash
 FIREBASE_CLIENT_EMAIL=
 ```
 
-**`FIREBASE_PRIVATE_KEY`** *(optional/required for push notifications)*  
+**`FIREBASE_PRIVATE_KEY`** _(optional/required for push notifications)_
 Firebase service account private key. Replace newlines with `\n` when storing in `.env`.
+
 ```bash
 FIREBASE_PRIVATE_KEY=
 ```
 
 ### Redis Settings
 
-**`CACHE_REDIS_URL`** *(required)*  
+**`CACHE_REDIS_URL`** _(required)_
 Redis URL for caching operations.
+
 ```bash
 CACHE_REDIS_URL=redis://localhost:6379/0
 ```
 
-**`QUEUE_REDIS_URL`** *(required)*  
+**`QUEUE_REDIS_URL`** _(required)_
 Redis URL for queue operations (background jobs).
+
 ```bash
 QUEUE_REDIS_URL=redis://localhost:6379/1
 ```
 
 ### Debug Settings
 
-**`SENTRY_DSN`** *(optional)*  
+**`SENTRY_DSN`** _(optional)_
 Sentry DSN for error tracking and monitoring.
+
 ```bash
 SENTRY_DSN=
 ```
-
-
 
 <!-- REFERENCES -->
 
