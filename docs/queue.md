@@ -6,6 +6,8 @@ This documentation explains the features and usage of **Queue Module**: Located 
 
 Queue module for background job processing using [BullMQ][ref-bullmq] and [Redis][ref-redis]. This module implements a DRY design pattern with singleton Redis connections for efficient resource management.
 
+InfiniteChat IM events do not use BullMQ. Message delivery, offline persistence events, and realtime notifications use Kafka infrastructure under `src/common/kafka`.
+
 All queue configurations are centralized in `src/configs/redis.config.ts`, with root setup and management located in `src/queues`.
 
 ## Related Documents

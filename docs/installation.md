@@ -154,6 +154,7 @@ Docker provides the fastest and most reliable way to set up the ACK NestJS Boile
 The Docker setup provides:
 
 - **PostgreSQL** - Primary application database
+- **Kafka** - IM event broker for message delivery, offline persistence, and realtime notifications
 - **Redis** - Single instance serving both caching (`db:0`) and queues (`db:1`)
 - **JWKS server** - Hosts your JWT public keys automatically
 - **BullMQ Dashboard** - Queue monitoring interface
@@ -246,12 +247,12 @@ The Docker setup includes a JWKS server that automatically hosts the generated k
 Now you're ready to start the complete Docker environment with all services.
 
 > [!NOTE]
-> By default, Docker installation only sets up dependencies (PostgreSQL, Redis, JWKS server, BullMQ dashboard). The API container is not included. To also run the API container, use the `apis` profile.
+> By default, Docker installation only sets up dependencies (PostgreSQL, Kafka, Redis, JWKS server, BullMQ dashboard). The API container is not included. To also run the API container, use the `apis` profile.
 
 **Start only dependencies:**
 
 ```bash
-# Start PostgreSQL, Redis, JWKS, and BullMQ dashboard
+# Start PostgreSQL, Kafka, Redis, JWKS, and BullMQ dashboard
 docker-compose up -d
 ```
 
@@ -265,6 +266,7 @@ docker-compose --profile apis up -d
 **What this command does:**
 
 - Starts PostgreSQL (port 5432)
+- Starts Kafka (port 9092 for host clients, `kafka:29092` for the API container)
 - Launches Redis server for caching and queues (port 6379)
 - Starts JWKS server to host your JWT public keys (port 3011)
 - Runs BullMQ dashboard for queue monitoring (port 3010)
@@ -348,7 +350,7 @@ For a complete guide and module details, see [Database Documentation][ref-doc-da
 
 ## Run Project
 
-Congratulations! You're now ready to start the project. Make sure all your services (PostgreSQL, Redis) are running before starting the application.
+Congratulations! You're now ready to start the project. Make sure all your services (PostgreSQL, Kafka, Redis) are running before starting the application.
 
 ```bash
 # Start in development mode with hot reload
@@ -421,6 +423,10 @@ Once your application is successfully running, you can access various endpoints 
     - BullMQ board for monitoring background jobs and queues
     - Default credentials: `admin` / `admin123`
     - Monitor job status, retry failed jobs, and view queue statistics
+
+- **Kafka Broker**: `localhost:9092` _(Docker installation only)_
+    - Host connection string for local tools and the Nest app outside Docker
+    - API container connection string is `kafka:29092`
 
 To verify everything is working correctly:
 

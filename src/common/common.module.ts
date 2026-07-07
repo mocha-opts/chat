@@ -22,6 +22,7 @@ import { SessionModule } from '@modules/session/session.module';
 import { FirebaseModule } from '@common/firebase/firebase.module';
 import { ActivityLogModule } from '@modules/activity-log/activity-log.module';
 import { NotificationModule } from '@modules/notification/notification.module';
+import { KafkaModule } from '@common/kafka/kafka.module';
 
 /**
  * Root shared module that composes all global infrastructure and feature modules.
@@ -50,6 +51,7 @@ import { NotificationModule } from '@modules/notification/notification.module';
         RedisCacheModule.forRoot(),
         QueueRegisterModule.forRoot(),
         CacheMainModule.forRoot(),
+        KafkaModule.forRoot(),
         DatabaseModule.forRoot(),
         RequestModule.forRoot(),
         ResponseModule.forRoot(),

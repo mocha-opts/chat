@@ -146,6 +146,21 @@ export class AppEnvDto {
 
     @IsNotEmpty()
     @IsString()
+    @Matches(/^[^,\s]+:\d+(,[^,\s]+:\d+)*$/)
+    KAFKA_BROKERS: string;
+
+    @IsNotEmpty()
+    @IsString()
+    @MinLength(1)
+    KAFKA_CLIENT_ID: string;
+
+    @IsNotEmpty()
+    @IsString()
+    @MinLength(1)
+    KAFKA_GROUP_ID: string;
+
+    @IsNotEmpty()
+    @IsString()
     @MinLength(1)
     AUTH_JWT_AUDIENCE: string;
 

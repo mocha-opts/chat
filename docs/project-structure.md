@@ -60,6 +60,7 @@ The App Module is the root module and entry point for the ACK NestJS Boilerplate
 The Common Module provides shared functionality and global services across the ACK NestJS Boilerplate application. It configures:
 - Global configuration management (using `ConfigModule` and custom configs)
 - Caching and queueing (Redis, BullMQ)
+- Kafka producer infrastructure for InfiniteChat IM events
 - Logging (LoggerModule)
 - Database access (DatabaseModule)
 - Authentication and authorization (AuthModule, PolicyModule, RoleModule, ApiKeyModule, FeatureFlagModule, TermPolicyModule, SessionModule, ActivityLogModule, NotificationModule)
@@ -71,7 +72,7 @@ The Common Module provides shared functionality and global services across the A
 **Location:** `src/configs/`
 
 The configs folder contains strongly-typed configuration files for all major application features and integrations, including:
-- Database, Redis, Logger, Auth, AWS, Email, Firebase, Feature Flags, User, Session, Request/Response, and more
+- Database, Redis, Kafka, Logger, Auth, AWS, Email, Firebase, Feature Flags, User, Session, Request/Response, and more
 - Each config file (e.g., `database.config.ts`, `auth.config.ts`) centralizes environment variables, settings, and validation logic for its domain
 - The `index.ts` file aggregates and exports all configs for use in global configuration management
 
@@ -97,7 +98,7 @@ The migration folder manages database migrations, initialization, and data seedi
 
 **Location:** `src/queues/`
 
-The queues folder implements background job processing using BullMQ and Redis. It includes:
+The queues folder implements background job processing using BullMQ and Redis. It does not handle InfiniteChat IM event delivery, which uses Kafka under `src/common/kafka`. It includes:
 - `queue.module.ts`: Main queue module for job orchestration
 - `queue.register.module.ts`: Registers and manages queue processors
 - Subfolders for queue bases, constants, decorators, enums, exceptions, interfaces
@@ -261,7 +262,6 @@ Below are explanations for the root folders and files outside `src/` (excluding 
 - **pnpm-lock.yaml**: pnpm lockfile ensuring deterministic dependency installation.
 - **pnpm-workspace.yaml**: pnpm workspace configuration for monorepo support.
 - **tsconfig.json**: TypeScript configuration file, specifying compiler options and project structure.
-
 
 
 

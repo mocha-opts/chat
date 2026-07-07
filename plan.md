@@ -278,10 +278,10 @@ Kafka topic：
 - [ ] 重建 Prisma model，先覆盖用户、好友、会话、消息、红包、朋友圈核心表。
 - [x] 调整 `src/common/database/services/database.service.ts` 健康检查，从 Mongo command 改为 PostgreSQL 查询。
 - [x] 调整 `src/configs/database.config.ts` 和 `.env.example` 中 `DATABASE_URL` 示例。
-- [ ] 新增 Kafka 配置：`src/configs/kafka.config.ts`。
-- [ ] 新增 Kafka 基础设施模块：`src/common/kafka/*`。
-- [x] 更新 `docker-compose.yml`，用 PostgreSQL 替换 MongoDB，保留 Redis。
-- [ ] 明确 BullMQ 只处理通知等后台任务，IM 不走 BullMQ。
+- [x] 新增 Kafka 配置：`src/configs/kafka.config.ts`。
+- [x] 新增 Kafka 基础设施模块：`src/common/kafka/*`。
+- [x] 更新 `docker-compose.yml`，用 PostgreSQL 替换 MongoDB，保留 Redis，并新增 Kafka broker。
+- [x] 明确 BullMQ 只处理通知等后台任务，IM 不走 BullMQ。
 
 建议文件：
 

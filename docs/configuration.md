@@ -22,6 +22,7 @@ The project uses a modular configuration approach through the NestJS `ConfigModu
 - [App Configuration](#app-configuration)
 - [Auth Configuration](#auth-configuration)
 - [Database Configuration](#database-configuration)
+- [Kafka Configuration](#kafka-configuration)
 - [AWS Configuration](#aws-configuration)
 - [Logger Configuration](#logger-configuration)
 - [Request Configuration](#request-configuration)
@@ -270,6 +271,35 @@ url: string; // PostgreSQL connection URL
 
 ```typescript
 debug: boolean; // Enable/disable database query logging
+```
+
+### Kafka Configuration
+
+**File**: `src/configs/kafka.config.ts`
+**Interface**: `IConfigKafka`
+
+This configuration manages Kafka producer connection settings for InfiniteChat IM events.
+
+> **Environment Variables**: See [Environment Documentation](environment.md) for detailed environment variable configuration.
+
+#### Configuration Keys:
+
+**`brokers`** - Kafka bootstrap broker list
+
+```typescript
+brokers: string[]; // Parsed from KAFKA_BROKERS
+```
+
+**`clientId`** - Kafka client identifier
+
+```typescript
+clientId: string; // Kafka client ID
+```
+
+**`groupId`** - Kafka consumer group identifier reserved for in-process Kafka handlers
+
+```typescript
+groupId: string; // Kafka consumer group ID
 ```
 
 ### AWS Configuration

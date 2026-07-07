@@ -30,6 +30,7 @@ All environment variables are validated using the `AppEnvDto` class to ensure re
     - [CORS Settings](#cors-settings)
     - [URL Versioning Settings](#url-versioning-settings)
     - [Database Settings](#database-settings)
+    - [Kafka Settings](#kafka-settings)
     - [Authentication Settings](#authentication-settings)
     - [Social Authentication Settings](#social-authentication-settings)
     - [Two-Factor Authentication Settings](#two-factor-authentication-settings)
@@ -105,6 +106,11 @@ URL_VERSION=1
 # Database
 DATABASE_URL=postgresql://ack:ack_password@localhost:5432/ACKNestJs?schema=public
 DATABASE_DEBUG=true
+
+# Kafka
+KAFKA_BROKERS=localhost:9092
+KAFKA_CLIENT_ID=infinite-chat-api
+KAFKA_GROUP_ID=infinite-chat-api
 
 # JWT Authentication
 AUTH_JWT_ISSUER=https://example.com
@@ -367,6 +373,31 @@ Enable database debug mode to log all queries.
 
 ```bash
 DATABASE_DEBUG=true
+```
+
+### Kafka Settings
+
+**`KAFKA_BROKERS`** _(required)_
+Comma-separated Kafka bootstrap brokers.
+
+```bash
+KAFKA_BROKERS=localhost:9092
+```
+
+When the API runs in Docker Compose through the `apis` profile, `docker-compose.yml` overrides this value to `kafka:29092` for internal container networking.
+
+**`KAFKA_CLIENT_ID`** _(required)_
+Kafka client identifier used by the Nest producer.
+
+```bash
+KAFKA_CLIENT_ID=infinite-chat-api
+```
+
+**`KAFKA_GROUP_ID`** _(required)_
+Kafka consumer group identifier reserved for in-process Kafka handlers.
+
+```bash
+KAFKA_GROUP_ID=infinite-chat-api
 ```
 
 ### Authentication Settings
