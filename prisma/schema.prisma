@@ -128,21 +128,37 @@ model User {
   deletedAt DateTime?
   deletedBy String?   @db.Uuid
 
-  mobileNumbers           UserMobileNumber[]         @relation("UserMobileNumberUser")
-  verifications           Verification[]             @relation("UserVerifications")
-  passwordHistories       PasswordHistory[]          @relation("UserPasswordHistories")
-  activityLogs            ActivityLog[]              @relation("UserActivityLogs")
-  role                    Role                       @relation("UserRole", fields: [roleId], references: [id])
-  country                 Country                    @relation("UserCountry", fields: [countryId], references: [id])
-  sessions                Session[]                  @relation("UserSessions")
-  acceptances             TermPolicyUserAcceptance[] @relation("TermPolicyUserAcceptanceUser")
-  forgotPasswords         ForgotPassword[]           @relation("UserForgotPassword")
-  twoFactor               TwoFactor?                 @relation("UserTwoFactor")
-  notifications           Notification[]             @relation("UserNotifications")
-  notificationSettings    NotificationUserSetting[]  @relation("UserNotificationSettings")
-  deviceOwnerships        DeviceOwnership[]          @relation("DeviceOwnershipUser")
-  revokedSessions         Session[]                  @relation("SessionRevokedByUser")
-  revokedDeviceOwnerships DeviceOwnership[]          @relation("DeviceOwnershipRevokedByUser")
+  mobileNumbers              UserMobileNumber[]         @relation("UserMobileNumberUser")
+  verifications              Verification[]             @relation("UserVerifications")
+  passwordHistories          PasswordHistory[]          @relation("UserPasswordHistories")
+  activityLogs               ActivityLog[]              @relation("UserActivityLogs")
+  role                       Role                       @relation("UserRole", fields: [roleId], references: [id])
+  country                    Country                    @relation("UserCountry", fields: [countryId], references: [id])
+  sessions                   Session[]                  @relation("UserSessions")
+  acceptances                TermPolicyUserAcceptance[] @relation("TermPolicyUserAcceptanceUser")
+  forgotPasswords            ForgotPassword[]           @relation("UserForgotPassword")
+  twoFactor                  TwoFactor?                 @relation("UserTwoFactor")
+  notifications              Notification[]             @relation("UserNotifications")
+  notificationSettings       NotificationUserSetting[]  @relation("UserNotificationSettings")
+  deviceOwnerships           DeviceOwnership[]          @relation("DeviceOwnershipUser")
+  revokedSessions            Session[]                  @relation("SessionRevokedByUser")
+  revokedDeviceOwnerships    DeviceOwnership[]          @relation("DeviceOwnershipRevokedByUser")
+  legacyId                   BigInt?                    @unique @map("legacy_id")
+  avatar                     String?
+  signature                  String?
+  balance                    UserBalance?               @relation("UserBalanceUser")
+  sentFriendApplications     FriendApplication[]        @relation("FriendApplicationSender")
+  receivedFriendApplications FriendApplication[]        @relation("FriendApplicationReceiver")
+  friends                    Friend[]                   @relation("FriendUser")
+  friendOf                   Friend[]                   @relation("FriendTarget")
+  conversationMemberships    ConversationMember[]       @relation("ConversationMemberUser")
+  messages                   Message[]                  @relation("MessageSender")
+  sentRedPackets             RedPacket[]                @relation("RedPacketSender")
+  redPacketReceives          RedPacketReceive[]         @relation("RedPacketReceiveReceiver")
+  balanceLogs                BalanceLog[]               @relation("BalanceLogUser")
+  moments                    Moment[]                   @relation("MomentUser")
+  momentLikes                MomentLike[]               @relation("MomentLikeUser")
+  momentComments             MomentComment[]            @relation("MomentCommentUser")
 
   @@unique(fields: [username])
   @@unique(fields: [email])
@@ -455,6 +471,256 @@ model NotificationUserSetting {
   @@map("NotificationUserSettings")
 }
 
+model UserBalance {
+  userId    String   @id @db.Uuid
+  balance   Decimal  @default(1000.00) @db.Decimal(18, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserBalanceUser", fields: [userId], references: [id])
+
+  @@map("user_balances")
+}
+
+model VerificationCode {
+  id        BigInt                      @id @default(autoincrement())
+  target    String
+  channel   EnumVerificationCodeChannel
+  codeHash  String                      @map("code_hash")
+  purpose   EnumVerificationCodePurpose
+  expiredAt DateTime                    @map("expired_at")
+  usedAt    DateTime?                   @map("used_at")
+  createdAt DateTime                    @default(now()) @map("created_at")
+
+  @@index(fields: [target, channel, purpose, expiredAt])
+  @@index(fields: [purpose, usedAt])
+  @@map("verification_codes")
+}
+
+model FriendApplication {
+  id         BigInt                      @id @default(autoincrement())
+  senderId   String                      @map("sender_id") @db.Uuid
+  receiverId String                      @map("receiver_id") @db.Uuid
+  message    String?
+  status     EnumFriendApplicationStatus @default(unread)
+  expiredAt  DateTime?                   @map("expired_at")
+  createdAt  DateTime                    @default(now()) @map("created_at")
+  updatedAt  DateTime                    @updatedAt @map("updated_at")
+
+  sender   User @relation("FriendApplicationSender", fields: [senderId], references: [id])
+  receiver User @relation("FriendApplicationReceiver", fields: [receiverId], references: [id])
+
+  @@index(fields: [senderId, receiverId, status])
+  @@index(fields: [receiverId, status, createdAt(sort: Desc)])
+  @@map("friend_applications")
+}
+
+model Friend {
+  id        BigInt           @id @default(autoincrement())
+  userId    String           @map("user_id") @db.Uuid
+  friendId  String           @map("friend_id") @db.Uuid
+  status    EnumFriendStatus @default(normal)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  user   User @relation("FriendUser", fields: [userId], references: [id])
+  friend User @relation("FriendTarget", fields: [friendId], references: [id])
+
+  @@unique(fields: [userId, friendId])
+  @@index(fields: [friendId, status])
+  @@index(fields: [userId, status, createdAt(sort: Desc)])
+  @@map("friends")
+}
+
+model Conversation {
+  id        BigInt                 @id @default(autoincrement())
+  name      String
+  type      EnumConversationType
+  status    EnumConversationStatus @default(normal)
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  members    ConversationMember[] @relation("ConversationMembers")
+  messages   Message[]            @relation("ConversationMessages")
+  redPackets RedPacket[]          @relation("ConversationRedPackets")
+
+  @@index(fields: [type, status, createdAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             BigInt                       @id @default(autoincrement())
+  conversationId BigInt                       @map("conversation_id")
+  userId         String                       @map("user_id") @db.Uuid
+  role           EnumConversationMemberRole   @default(member)
+  status         EnumConversationMemberStatus @default(normal)
+  createdAt      DateTime                     @default(now()) @map("created_at")
+  updatedAt      DateTime                     @updatedAt @map("updated_at")
+
+  conversation Conversation @relation("ConversationMembers", fields: [conversationId], references: [id])
+  user         User         @relation("ConversationMemberUser", fields: [userId], references: [id])
+
+  @@unique(fields: [conversationId, userId])
+  @@index(fields: [userId, status])
+  @@index(fields: [conversationId, role, status])
+  @@map("conversation_members")
+}
+
+model Message {
+  id               BigInt               @id @map("message_id")
+  senderId         String               @map("sender_id") @db.Uuid
+  conversationId   BigInt               @map("conversation_id")
+  conversationType EnumConversationType @map("conversation_type")
+  type             EnumMessageType
+  content          String?
+  body             Json
+  replyId          BigInt?              @map("reply_id")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  sender       User            @relation("MessageSender", fields: [senderId], references: [id])
+  conversation Conversation    @relation("ConversationMessages", fields: [conversationId], references: [id])
+  reply        Message?        @relation("MessageReplies", fields: [replyId], references: [id])
+  replies      Message[]       @relation("MessageReplies")
+  outboxes     MessageOutbox[] @relation("MessageOutboxes")
+
+  @@index(fields: [conversationId, createdAt(sort: Desc)])
+  @@index(fields: [senderId, createdAt(sort: Desc)])
+  @@index(fields: [conversationType, type, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model MessageOutbox {
+  id          BigInt                  @id @default(autoincrement())
+  messageId   BigInt                  @map("message_id")
+  topic       String
+  messageKey  String                  @map("message_key")
+  payload     Json
+  status      EnumMessageOutboxStatus @default(init)
+  retryCount  Int                     @default(0) @map("retry_count")
+  nextRetryAt DateTime?               @map("next_retry_at")
+  lastError   String?                 @map("last_error")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  message Message @relation("MessageOutboxes", fields: [messageId], references: [id])
+
+  @@unique(fields: [messageId, topic])
+  @@index(fields: [status, nextRetryAt])
+  @@index(fields: [topic, status, createdAt(sort: Desc)])
+  @@map("message_outboxes")
+}
+
+model RedPacket {
+  id              BigInt              @id @map("red_packet_id")
+  senderId        String              @map("sender_id") @db.Uuid
+  conversationId  BigInt              @map("conversation_id")
+  wrapperText     String              @map("wrapper_text")
+  type            EnumRedPacketType
+  totalAmount     Decimal             @map("total_amount") @db.Decimal(18, 2)
+  totalCount      Int                 @map("total_count")
+  remainingAmount Decimal             @map("remaining_amount") @db.Decimal(18, 2)
+  remainingCount  Int                 @map("remaining_count")
+  status          EnumRedPacketStatus @default(unclaimed)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  expireAt        DateTime            @map("expire_at")
+
+  sender       User               @relation("RedPacketSender", fields: [senderId], references: [id])
+  conversation Conversation       @relation("ConversationRedPackets", fields: [conversationId], references: [id])
+  receives     RedPacketReceive[] @relation("RedPacketReceives")
+
+  @@index(fields: [senderId, createdAt(sort: Desc)])
+  @@index(fields: [conversationId, createdAt(sort: Desc)])
+  @@index(fields: [status, expireAt])
+  @@map("red_packets")
+}
+
+model RedPacketReceive {
+  id          BigInt   @id @default(autoincrement()) @map("red_packet_receive_id")
+  redPacketId BigInt   @map("red_packet_id")
+  receiverId  String   @map("receiver_id") @db.Uuid
+  amount      Decimal  @db.Decimal(18, 2)
+  receivedAt  DateTime @default(now()) @map("received_at")
+
+  redPacket RedPacket @relation("RedPacketReceives", fields: [redPacketId], references: [id])
+  receiver  User      @relation("RedPacketReceiveReceiver", fields: [receiverId], references: [id])
+
+  @@unique(fields: [redPacketId, receiverId])
+  @@index(fields: [receiverId, receivedAt(sort: Desc)])
+  @@map("red_packet_receives")
+}
+
+model BalanceLog {
+  id        BigInt             @id @default(autoincrement()) @map("balance_log_id")
+  userId    String             @map("user_id") @db.Uuid
+  amount    Decimal            @db.Decimal(18, 2)
+  type      EnumBalanceLogType
+  relatedId BigInt?            @map("related_id")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  user User @relation("BalanceLogUser", fields: [userId], references: [id])
+
+  @@index(fields: [userId, createdAt(sort: Desc)])
+  @@index(fields: [type, relatedId])
+  @@map("balance_logs")
+}
+
+model Moment {
+  id        BigInt    @id @map("moment_id")
+  userId    String    @map("user_id") @db.Uuid
+  text      String?   @db.Text
+  mediaUrls Json      @map("media_urls")
+  createdAt DateTime  @default(now()) @map("create_time")
+  updatedAt DateTime  @updatedAt @map("update_time")
+  deletedAt DateTime? @map("delete_time")
+
+  user     User            @relation("MomentUser", fields: [userId], references: [id])
+  likes    MomentLike[]    @relation("MomentLikes")
+  comments MomentComment[] @relation("MomentComments")
+
+  @@index(fields: [userId, deletedAt, createdAt(sort: Desc)])
+  @@index(fields: [createdAt(sort: Desc)])
+  @@map("moments")
+}
+
+model MomentLike {
+  id        BigInt   @id @default(autoincrement()) @map("like_id")
+  momentId  BigInt   @map("moment_id")
+  userId    String   @map("user_id") @db.Uuid
+  isDeleted Boolean  @default(false) @map("is_delete")
+  createdAt DateTime @default(now()) @map("create_time")
+  updatedAt DateTime @updatedAt @map("update_time")
+
+  moment Moment @relation("MomentLikes", fields: [momentId], references: [id])
+  user   User   @relation("MomentLikeUser", fields: [userId], references: [id])
+
+  @@unique(fields: [momentId, userId])
+  @@index(fields: [userId, isDeleted, createdAt(sort: Desc)])
+  @@map("moment_likes")
+}
+
+model MomentComment {
+  id              BigInt   @id @default(autoincrement()) @map("comment_id")
+  momentId        BigInt   @map("moment_id")
+  userId          String   @map("user_id") @db.Uuid
+  parentCommentId BigInt?  @map("parent_comment_id")
+  content         String   @map("comment") @db.Text
+  isDeleted       Boolean  @default(false) @map("is_delete")
+  createdAt       DateTime @default(now()) @map("create_time")
+  updatedAt       DateTime @updatedAt @map("update_time")
+
+  moment   Moment          @relation("MomentComments", fields: [momentId], references: [id])
+  user     User            @relation("MomentCommentUser", fields: [userId], references: [id])
+  parent   MomentComment?  @relation("MomentCommentReplies", fields: [parentCommentId], references: [id])
+  children MomentComment[] @relation("MomentCommentReplies")
+
+  @@index(fields: [momentId, isDeleted, createdAt(sort: Desc)])
+  @@index(fields: [userId, isDeleted, createdAt(sort: Desc)])
+  @@index(fields: [parentCommentId])
+  @@map("moment_comments")
+}
+
 enum EnumUserGender {
   male
   female
@@ -622,4 +888,84 @@ enum EnumNotificationPriority {
 enum EnumBiometricType {
   fingerprint
   faceId
+}
+
+enum EnumVerificationCodeChannel {
+  sms
+  email
+}
+
+enum EnumVerificationCodePurpose {
+  register
+  login
+  resetPassword
+}
+
+enum EnumFriendApplicationStatus {
+  unread
+  accepted
+  rejected
+  read
+  expired
+}
+
+enum EnumFriendStatus {
+  normal
+  blocked
+  deleted
+}
+
+enum EnumConversationType {
+  single
+  group
+}
+
+enum EnumConversationStatus {
+  normal
+  deleted
+}
+
+enum EnumConversationMemberRole {
+  owner
+  admin
+  member
+}
+
+enum EnumConversationMemberStatus {
+  normal
+  deleted
+}
+
+enum EnumMessageType {
+  text
+  picture
+  file
+  video
+  redPacket
+  emoticon
+}
+
+enum EnumMessageOutboxStatus {
+  init
+  pending
+  sent
+  failed
+}
+
+enum EnumRedPacketType {
+  normal
+  random
+}
+
+enum EnumRedPacketStatus {
+  unclaimed
+  claimed
+  expired
+  refunding
+}
+
+enum EnumBalanceLogType {
+  sendRedPacket
+  receiveRedPacket
+  refundRedPacket
 }

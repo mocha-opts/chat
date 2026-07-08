@@ -257,11 +257,11 @@ Kafka topic：
 
 任务：
 
-- [ ] 读取 `Fork/*/controller/*.java`，整理旧 API 路由表。
-- [ ] 读取 `Fork/*/model/*.java` 和 `Fork/*/mapper/*.xml`，整理旧表字段。
-- [ ] 读取关键 service impl，确认业务规则和异常语义。
-- [ ] 读取当前 `src/modules`、`src/common`、`src/router`，确认可复用能力。
-- [ ] 在 `spec.md` 维护 API、领域模型、事件和验收标准。
+- [x] 读取 `Fork/*/controller/*.java`，整理旧 API 路由表。
+- [x] 读取 `Fork/*/model/*.java` 和 `Fork/*/mapper/*.xml`，整理旧表字段。
+- [x] 读取关键 service impl，确认业务规则和异常语义。
+- [x] 读取当前 `src/modules`、`src/common`、`src/router`，确认可复用能力。
+- [x] 在 `spec.md` 维护 API、领域模型、事件和验收标准。
 
 验收：
 
@@ -275,13 +275,15 @@ Kafka topic：
 任务：
 
 - [x] 修改 `prisma/schema.prisma` datasource provider 为 `postgresql`。
-- [ ] 重建 Prisma model，先覆盖用户、好友、会话、消息、红包、朋友圈核心表。
+- [x] 重建 Prisma model，先覆盖用户、好友、会话、消息、红包、朋友圈核心表。
 - [x] 调整 `src/common/database/services/database.service.ts` 健康检查，从 Mongo command 改为 PostgreSQL 查询。
 - [x] 调整 `src/configs/database.config.ts` 和 `.env.example` 中 `DATABASE_URL` 示例。
 - [x] 新增 Kafka 配置：`src/configs/kafka.config.ts`。
 - [x] 新增 Kafka 基础设施模块：`src/common/kafka/*`。
 - [x] 更新 `docker-compose.yml`，用 PostgreSQL 替换 MongoDB，保留 Redis，并新增 Kafka broker。
 - [x] 明确 BullMQ 只处理通知等后台任务，IM 不走 BullMQ。
+
+备注：`重建 Prisma model` 已在用户明确授权后完成，并已执行 `pnpm db:generate`。本阶段没有执行 `pnpm db:migrate`、`pnpm db:push` 或任何数据库写入命令。
 
 建议文件：
 

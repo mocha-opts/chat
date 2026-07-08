@@ -63,7 +63,8 @@ flowchart LR
 
 字段语义：
 
-- `id`：用户 ID，建议 PostgreSQL `BigInt` 或可兼容旧 ID 的 string 输出。
+- `id`：用户 ID。当前 ACK boilerplate 已使用 PostgreSQL UUID 主键，迁移时保持不变。
+- `legacyId`：旧 Java `Long` 用户 ID 的可选兼容字段，使用 PostgreSQL `BigInt`，对外响应统一转 string。
 - `username`：昵称，对应旧 `user_name`。
 - `passwordHash`：密码 hash。禁止沿用旧 MD5，目标使用 bcrypt 或 boilerplate 现有安全实现。
 - `email`：邮箱，可为空。
@@ -80,6 +81,7 @@ flowchart LR
 - 登录只允许 `active` 用户。
 - 对外不返回 `passwordHash`。
 - 注册成功必须创建 `UserBalance`。
+- 手机号优先复用 ACK 的 `UserMobileNumber` 结构，旧路径响应可以由兼容层组装为 `phone`。
 
 ### 4.2 UserBalance
 
@@ -578,3 +580,83 @@ flowchart LR
 - 文档中不再把 BullMQ 写成 IM 消息队列。
 - 文档明确“不做微服务”。
 - 文档明确直接使用当前 ACK NestJS boilerplate。
+
+## 12. Java 源码审计基线
+
+本节记录 2026-07-08 对 `Fork/*/src/main` 的第一轮源码审计结果。它用于指导后续 Prisma schema、Nest 模块和兼容路由实现。`Fork/*/target/**` 只作为编译产物存在，不作为事实来源，也不能迁移其中的环境值。
+
+### 12.1 Controller 覆盖表
+
+| Java 来源 | 旧入口 | 目标模块 | 迁移结论 |
+| --------- | ------ | -------- | -------- |
+| `AuthenticationService/controller/UserController.java` | `POST /api/v1/user/register` | `auth` / `user` | 保留路径。注册写用户和余额。 |
+| `AuthenticationService/controller/UserController.java` | `POST /api/v1/user/login` | `auth` | 保留路径。目标改用 bcrypt 校验。 |
+| `AuthenticationService/controller/UserController.java` | `POST /api/v1/user/loginCode` | `auth` / `verification` | 保留路径。验证码走 Redis 短期状态。 |
+| `AuthenticationService/controller/UserController.java` | `PATCH /api/v1/user/avatar` | `user` | 保留路径。JWT subject 作为当前用户。 |
+| `AuthenticationService/controller/CommonController.java` | `POST /api/v1/user/common/sendMail` | `verification` | 保留路径。旧实现用手机号作为 Redis key 后缀，新实现必须按 purpose 明确 key。 |
+| `AuthenticationService/controller/CommonController.java` | `POST /api/v1/user/common/check` | `verification` | 保留路径。校验成功后删除 Redis key 或标记 used。 |
+| `AuthenticationService/controller/CommonController.java` | `POST /api/v1/user/common/uploadUrl` | `storage` | 保留路径。复用对象存储预签名能力。 |
+| `ContactService/controller/ContactController.java` | `/api/v1/contact/**` | `contact` / `conversation` | 全量保留。联系人和群聊拆为两个 Nest 领域模块。 |
+| `MessagingService/controller/SendMsgController.java` | `POST /api/v1/chat/session` | `messaging` | 保留路径。旧 `GET /api/feign` 和 `GET /api/hello` 是调试入口，废弃。 |
+| `MessagingService/controller/RedPacketController.java` | `/api/v1/chat/redPacket/**` | `red-packet` | 全量保留。发送红包复用消息发送链路。 |
+| `OfflineDataStoreService/controller/MessageController.java` | `GET /api/v1/offline/message` | `offline-message` | 保留路径。按用户会话聚合增量消息。 |
+| `MomentService/controller/MomentController.java` | `/api/v1/moment/**` | `moment` | 全量保留。增量列表返回新增和删除集合。 |
+| `RealTimeCommunicationService/controller/RcvMsgController.java` | `POST /api/v1/message/user` | `realtime` | 不作为外部业务 API。目标改为进程内 service 或 Kafka realtime push handler。 |
+| `RealTimeCommunicationService/controller/PushController.java` | `/api/v1/message/push/**` | `realtime` | 不保留为内部 HTTP 自调用。目标改为同进程 service 或 Kafka event。 |
+| `GateWay/demos/web/*Controller.java` | demo 路由 | 无 | 废弃。旧 Gateway、Nacos、负载均衡代码只用于理解历史拓扑。 |
+
+### 12.2 旧表字段来源
+
+| 旧表语义 | Java model / mapper 来源 | 目标实体 |
+| -------- | ------------------------ | -------- |
+| 用户 | `User.java`、`UserMapper.xml` | `User` |
+| 用户余额 | `UserBalance.java`、`UserBalanceMapper.xml` | `UserBalance` |
+| 好友申请 | `ApplyFriend.java`、`ApplyFriendMapper.xml` | `FriendApplication` |
+| 好友关系 | `Friend.java`、`FriendMapper.xml` | `Friend` |
+| 会话 | `Session.java`、`SessionMapper.xml` | `Conversation` |
+| 会话成员 | `UserSession.java`、`UserSessionMapper.xml` | `ConversationMember` |
+| 消息 | `Message.java`、`MessageMapper.xml` | `Message` |
+| 消息 outbox | `MessageOutbox.java` | `MessageOutbox` |
+| 红包 | `RedPacket.java`、`RedPacketMapper.xml` | `RedPacket` |
+| 红包领取 | `RedPacketReceive.java`、`RedPacketReceiveMapper.xml` | `RedPacketReceive` |
+| 余额流水 | `BalanceLog.java`、`BalanceLogMapper.xml` | `BalanceLog` |
+| 朋友圈 | `Moment.java`、`MomentMapper.xml` | `Moment` |
+| 朋友圈点赞 | `MomentLike.java`、`MomentLikeMapper.xml` | `MomentLike` |
+| 朋友圈评论 | `MomentComment.java`、`MomentCommentMapper.xml` | `MomentComment` |
+
+字段迁移规则：
+
+- Java `Long` 业务实体 ID 迁移为 PostgreSQL `BigInt`，对外响应统一转 string。
+- ACK 已有 `User.id` 保持 UUID，不重写认证体系主键。旧 Java 用户 ID 通过 `User.legacyId` 兼容。
+- 金额字段迁移为 Prisma `Decimal`，Service 层禁止用 JS number 表达金额。
+- 旧 `status` numeric code 在 Nest 中使用枚举封装，数据库可保留 smallint 或 text，最终以 Prisma schema 为准。
+- 旧 `message.content` 对文本消息保存正文，对红包消息保存 `redPacketId`。目标可保留 `content`，同时增加 `body` JSON 承载消息扩展。
+- 旧 `moment.media_url` 是 JSON 字符串。目标应使用 JSON 字段或规范化媒体数组，响应仍返回 URL 数组。
+
+### 12.3 关键业务规则
+
+- 注册：手机号唯一，验证码 Redis TTL 为 5 分钟，旧密码是 MD5。目标必须改 bcrypt。注册成功创建 `UserBalance`，初始余额沿用旧语义为 `1000`。
+- 验证码：旧注册和邮箱发送都使用 `register:code:<phone>`，目标必须按 `verification:<purpose>:<channel>:<target>` 拆分，防止邮箱和手机号语义混用。
+- 好友申请：新申请写 `ApplyFriend`，初始状态为 unread，Redis `friend_request:<id>` 保存 72 小时过期辅助状态。PostgreSQL 仍是权威状态。
+- 通过好友申请：事务中更新申请状态为 accepted，创建双向好友关系、单聊会话、双方会话成员，并发送新会话通知。
+- 删除好友：删除双方申请记录、双向好友关系、单聊会话和对应会话成员。目标实现需要确保历史消息策略在 schema 设计时明确。
+- 拉黑好友：只更新发起方到接收方的好友关系为 blocked。
+- 群聊创建：创建者必须是正常用户，群名由创建者和成员昵称拼接，最多 16 个字符。创建者 role 为 owner，成员 role 为 member。
+- 邀请入群：邀请者必须在群内且为 owner 或 admin，被邀请者必须是邀请者好友且状态正常，已在群内或不符合条件的用户进入 failed 列表。
+- 消息发送：发送者必须 active。单聊必须校验好友关系，群聊必须校验发送者仍在群内。消息生成后写 outbox 并投递 Kafka，实时在线路由不存在时不阻塞离线持久化。
+- 离线消息：Kafka consumer 消费旧 topic `thousands_word_message`，目标 topic 统一迁移为 `im.message.persist` 或由 `im.message.created` 派生。离线查询按当前用户所属会话聚合，并按时间过滤。
+- WebSocket：旧 path 是 `/api/v1/netty`。握手从 header 读取 `userUuid` 和 `token`，目标必须改为兼容 token 解析且校验 token subject 与用户 ID。在线路由 key 是 `user:session:<userId>`，TTL 为 15 分钟。
+- ACK：服务端推送 envelope 包含 `type`、`msgUuid`、`data`。客户端 ACK 回传同一 `msgUuid`。超时 5 秒扫描，最多重试 3 次，超过后放弃实时投递但不删除持久化消息。
+- 红包发送：先条件扣减余额，再创建红包、写余额流水、预拆金额写 Redis，并作为红包消息发送。消息发送失败必须回滚或补偿。
+- 红包领取：Redis Lua 原子判断重复领取并弹出金额；PostgreSQL 条件更新红包剩余金额和数量；写领取记录、加余额、写余额流水。数据库失败时补偿 Redis。
+- 红包过期：定时扫描过期未领完红包，标记 refunding，退还剩余金额，写 refund balance log，再标记 expired。
+- 朋友圈：发布保存文本和媒体 URL 数组，通知好友。删除朋友圈软删除并删除或标记关联点赞评论。增量列表只返回自己和好友可见数据，并拆分 create/delete 集合。
+
+### 12.4 迁移约束
+
+- 旧 Feign、OkHttp 内部 HTTP 调用在目标单体中禁止继续使用。改为同进程 service 调用或 Kafka 事件。
+- 旧 Nacos、Spring Cloud Gateway 和 Netty 服务注册不迁移。目标只保留兼容 API path 与 WebSocket path。
+- 旧 Kafka topic `thousands_word_message` 不再作为新规范 topic。后续迁移若需要平滑兼容，可以在 consumer 层临时订阅并转换为新 envelope，但不能把旧 topic 写成目标事实。
+- 旧 Java 业务里发现的直接错误字符串只用于理解语义。目标错误响应必须走 Nest exception、i18n key 和 ACK response 体系。
+- 2026-07-08 已获得用户授权编辑 `prisma/schema.prisma` 并执行 `pnpm db:generate`。
+- 第一批 Prisma model 已覆盖 `UserBalance`、`VerificationCode`、`FriendApplication`、`Friend`、`Conversation`、`ConversationMember`、`Message`、`MessageOutbox`、`RedPacket`、`RedPacketReceive`、`BalanceLog`、`Moment`、`MomentLike`、`MomentComment`。
