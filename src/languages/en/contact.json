@@ -1,0 +1,20 @@
+{
+    "searchUser": "Contact user searched successfully.",
+    "addFriend": "Friend application submitted successfully.",
+    "friendDetail": "Friend detail retrieved successfully.",
+    "applyCount": "Unread friend application count retrieved successfully.",
+    "applyList": "Friend application list retrieved successfully.",
+    "modifyApplication": "Friend application status updated successfully.",
+    "deleteFriend": "Friend deleted successfully.",
+    "blockFriend": "Friend blocked successfully.",
+    "error": {
+        "userNotFound": "User not found.",
+        "userInactive": "User is not active.",
+        "selfOperationInvalid": "You cannot perform this operation on yourself.",
+        "applicationNotFound": "Friend application not found.",
+        "applicationStatusInvalid": "Friend application status is invalid.",
+        "alreadyFriend": "Users are already friends.",
+        "friendNotFound": "Friend relation not found.",
+        "forbidden": "You cannot operate on another user's contact data."
+    }
+}

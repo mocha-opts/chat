@@ -660,3 +660,18 @@ flowchart LR
 - 旧 Java 业务里发现的直接错误字符串只用于理解语义。目标错误响应必须走 Nest exception、i18n key 和 ACK response 体系。
 - 2026-07-08 已获得用户授权编辑 `prisma/schema.prisma` 并执行 `pnpm db:generate`。
 - 第一批 Prisma model 已覆盖 `UserBalance`、`VerificationCode`、`FriendApplication`、`Friend`、`Conversation`、`ConversationMember`、`Message`、`MessageOutbox`、`RedPacket`、`RedPacketReceive`、`BalanceLog`、`Moment`、`MomentLike`、`MomentComment`。
+
+### 12.5 阶段 3 实现基线
+
+2026-07-09 阶段 3 已新增 `contact` 和 `conversation` 模块，并通过 `src/router/routes/routes.contact.module.ts` 挂载旧 `/api/v1/contact/**` 路径。
+
+实现约束：
+
+- 旧路径统一使用 ACK `@Response`，写操作和关系查询使用 JWT 鉴权，并校验 path 或 body 里的用户 ID 必须解析到当前 token subject。
+- 用户 ID 兼容 UUID 和 `User.legacyId`。旧 Java Long 字符串优先按 `legacyId` 查询，UUID 字符串按 `User.id` 查询。
+- 好友申请写入 `friend_applications`。通过申请时使用 Prisma interactive transaction 更新申请状态，创建双向 `friends`，创建 `conversations` 单聊和两条 `conversation_members`。
+- 删除好友使用软状态：双向好友关系标记为 `deleted`，单聊会话和成员关系标记为 `deleted`，不物理删除历史关系数据。
+- 群聊创建、邀请、踢人、退群和设置管理员都写 `conversation_members`，角色使用 `owner`、`admin`、`member`。
+- 旧 Java 数字响应语义在兼容层映射：好友 `normal=1`、`blocked=2`、`deleted=3`、非好友 `0`；好友申请 `unread=0`、`accepted=1`、`rejected=2`、`read=3`、`expired=4`；会话 `single=1`、`group=2`。
+- 阶段 3 不恢复旧 Java 对实时服务的内部 HTTP 调用。好友申请、新会话、新群会话通知等待阶段 4 `realtime` 模块以同进程 service 或 Kafka 事件接入。
+- 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。

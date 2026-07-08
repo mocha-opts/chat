@@ -312,12 +312,14 @@ pnpm lint
 
 任务：
 
-- [ ] 复用或调整 `src/modules/user`，补齐旧项目用户字段。
-- [ ] 复用或调整 `src/modules/auth`，兼容手机号密码登录和验证码登录。
-- [ ] 新增 `verification` 能力，管理验证码生成、发送、校验、过期。
-- [ ] 注册事务中创建 `users` 和 `user_balances`。
-- [ ] 头像更新使用 `storage` 模块返回的 URL。
-- [ ] 兼容旧路径：`/api/v1/user/register`、`/api/v1/user/login`、`/api/v1/user/loginCode`、`/api/v1/user/avatar`、`/api/v1/user/common/sendMail`、`/api/v1/user/common/check`、`/api/v1/user/common/uploadUrl`。
+- [x] 复用或调整 `src/modules/user`，补齐旧项目用户字段。
+- [x] 复用或调整 `src/modules/auth`，兼容手机号密码登录和验证码登录。
+- [x] 新增 `verification` 能力，管理验证码生成、发送、校验、过期。
+- [x] 注册事务中创建 `users` 和 `user_balances`。
+- [x] 头像更新使用 `storage` 模块返回的 URL。
+- [x] 兼容旧路径：`/api/v1/user/register`、`/api/v1/user/login`、`/api/v1/user/loginCode`、`/api/v1/user/avatar`、`/api/v1/user/common/sendMail`、`/api/v1/user/common/check`、`/api/v1/user/common/uploadUrl`。
+
+备注：阶段 2 已在 `feat(user): add legacy auth compatibility` 中完成。验证码只持久化 hash，旧登录自动生成 device，旧注册自动生成占位邮箱。
 
 验证：
 
@@ -332,14 +334,16 @@ pnpm lint
 
 任务：
 
-- [ ] 新建或扩展 `contact` 模块。
-- [ ] 新建 `conversation` 模块承接旧 `session` 和 `user_session`。
-- [ ] 好友申请写入 `friend_applications`，Redis 只做过期辅助，不作为唯一状态。
-- [ ] 通过好友申请时在同一事务中创建双向好友和单聊会话。
-- [ ] 删除好友时清理好友关系和单聊会话成员关系。
-- [ ] 群聊创建时创建会话、群主成员关系和普通成员关系。
-- [ ] 邀请、踢人、退群、设置管理员都写入 `conversation_members`。
+- [x] 新建或扩展 `contact` 模块。
+- [x] 新建 `conversation` 模块承接旧 `session` 和 `user_session`。
+- [x] 好友申请写入 `friend_applications`，Redis 只做过期辅助，不作为唯一状态。
+- [x] 通过好友申请时在同一事务中创建双向好友和单聊会话。
+- [x] 删除好友时清理好友关系和单聊会话成员关系。
+- [x] 群聊创建时创建会话、群主成员关系和普通成员关系。
+- [x] 邀请、踢人、退群、设置管理员都写入 `conversation_members`。
 - [ ] 好友申请、新会话、新群会话推送改为同进程 service 调用或 Kafka 事件，不再 HTTP 调用实时服务。
+
+备注：阶段 3 基础关系和会话闭环已接入 `/api/v1/contact/**` 旧路径。实时推送等待阶段 4 的 `realtime` 模块后接入，当前实现没有恢复旧 Java 的内部 HTTP 推送调用。
 
 验证：
 

@@ -1,0 +1,17 @@
+{
+    "createGroup": "Group conversation created successfully.",
+    "inviteGroup": "Group invitation processed successfully.",
+    "kickGroup": "Group members removed successfully.",
+    "exitGroup": "Exited group successfully.",
+    "groupMembers": "Group members retrieved successfully.",
+    "setAdmin": "Group administrator role updated successfully.",
+    "error": {
+        "userNotFound": "User not found.",
+        "userInactive": "User is not active.",
+        "conversationNotFound": "Conversation not found.",
+        "memberNotFound": "Conversation member not found.",
+        "permissionDenied": "You do not have permission for this group operation.",
+        "kickedOwnerInvalid": "Group owner cannot be removed.",
+        "kickedAdminInvalid": "An administrator cannot remove another administrator."
+    }
+}
