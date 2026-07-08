@@ -421,6 +421,54 @@ export class NotificationTemplateService implements INotificationTemplateService
         }
     }
 
+    async emailImportVerificationCode(): Promise<boolean> {
+        try {
+            const templatePath = join(
+                this.templatesDir,
+                'notification.verification-code.template.hbs'
+            );
+
+            await this.awsSESService.createTemplate({
+                name: EnumNotificationProcess.verificationCode,
+                subject: `Verification Code`,
+                htmlBody: readFileSync(templatePath, 'utf8'),
+            });
+
+            return true;
+        } catch (err: unknown) {
+            this.logger.error(err, 'Failed to import verification code template');
+
+            return false;
+        }
+    }
+
+    async emailGetVerificationCode(): Promise<GetTemplateCommandOutput | null> {
+        try {
+            const template = await this.awsSESService.getTemplate({
+                name: EnumNotificationProcess.verificationCode,
+            });
+            return template;
+        } catch (err: unknown) {
+            this.logger.warn(err, 'Failed to get verification code template');
+
+            return null;
+        }
+    }
+
+    async emailDeleteVerificationCode(): Promise<boolean> {
+        try {
+            await this.awsSESService.deleteTemplate({
+                name: EnumNotificationProcess.verificationCode,
+            });
+
+            return true;
+        } catch (err: unknown) {
+            this.logger.error(err, 'Failed to delete verification code template');
+
+            return false;
+        }
+    }
+
     async emailImportVerifiedEmail(): Promise<boolean> {
         try {
             const templatePath = join(

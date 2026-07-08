@@ -9,6 +9,7 @@ import {
     INotificationNewDeviceLoginPayload,
     INotificationPublishTermPolicyPayload,
     INotificationTemporaryPasswordPayload,
+    INotificationVerificationCodePayload,
     INotificationVerificationEmailPayload,
     INotificationVerifiedEmailPayload,
     INotificationVerifiedMobileNumberPayload,
@@ -309,6 +310,39 @@ export class NotificationEmailProcessorService implements INotificationEmailProc
             return { message: 'Verification email processed', result };
         } catch (err: unknown) {
             this.logger.error(err, 'Failed to process verification email');
+            throw err;
+        }
+    }
+
+    async processVerificationCode(
+        job: Job<
+            INotificationEmailWorkerPayload<INotificationVerificationCodePayload>,
+            IQueueResponse,
+            EnumNotificationProcess
+        >
+    ): Promise<IQueueResponse> {
+        try {
+            const { email, username, cc, bcc } = job.data.send;
+            const { code, expiredInMinutes, purpose } = job.data.data!;
+
+            const result = await this.awsSESService.send({
+                templateName: EnumNotificationProcess.verificationCode,
+                recipients: [email],
+                sender: this.noreplyEmail,
+                templateData: {
+                    ...this.defaultTemplateData,
+                    username,
+                    code,
+                    purpose,
+                    expiredInMinutes: String(expiredInMinutes),
+                },
+                ...(cc?.length && { cc }),
+                ...(bcc?.length && { bcc }),
+            });
+
+            return { message: 'Verification code email processed', result };
+        } catch (err: unknown) {
+            this.logger.error(err, 'Failed to process verification code email');
             throw err;
         }
     }

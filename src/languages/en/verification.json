@@ -1,0 +1,8 @@
+{
+    "sendMail": "Verification code has been sent.",
+    "check": "Verification code checked successfully.",
+    "error": {
+        "invalid": "Verification code is invalid.",
+        "expired": "Verification code has expired."
+    }
+}

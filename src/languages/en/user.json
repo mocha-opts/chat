@@ -21,6 +21,12 @@
     "resetPassword": "Password has been reset successfully.",
     "signUp": "Signed up successfully.",
     "loginCredential": "Logged in successfully with credentials.",
+    "legacy": {
+        "register": "Registered successfully.",
+        "login": "Logged in successfully.",
+        "loginCode": "Logged in successfully with verification code.",
+        "avatar": "Avatar updated successfully."
+    },
     "loginWithSocialGoogle": "Logged in successfully with Google.",
     "loginWithSocialApple": "Logged in successfully with Apple.",
     "verifyTwoFactor": "Two-factor verification completed successfully.",

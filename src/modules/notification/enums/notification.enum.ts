@@ -7,6 +7,7 @@ export enum EnumNotificationProcess {
     verifiedEmail = 'verifiedEmail',
     verifiedMobileNumber = 'verifiedMobileNumber',
     verificationEmail = 'verificationEmail',
+    verificationCode = 'verificationCode',
     forgotPassword = 'forgotPassword',
     resetPassword = 'resetPassword',
     newDeviceLogin = 'newDeviceLogin',

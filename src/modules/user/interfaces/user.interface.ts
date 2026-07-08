@@ -10,6 +10,17 @@ import {
     UserMobileNumber,
 } from '@generated/prisma-client';
 
+export interface IUserLegacyPhoto {
+    bucket: string;
+    key: string;
+    cdnUrl: string | null;
+    completedUrl: string;
+    mime: string;
+    extension: string;
+    access: string;
+    size: number;
+}
+
 export interface IUser extends User {
     role: Role;
     twoFactor: TwoFactor | null;

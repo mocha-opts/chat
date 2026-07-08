@@ -25,6 +25,10 @@ import { UserForgotPasswordResetRequestDto } from '@modules/user/dtos/request/us
 import { UserForgotPasswordRequestDto } from '@modules/user/dtos/request/user.forgot-password.request.dto';
 import { UserGeneratePhotoProfileRequestDto } from '@modules/user/dtos/request/user.generate-photo-profile.request.dto';
 import { UserLoginRequestDto } from '@modules/user/dtos/request/user.login.request.dto';
+import { UserLegacyAvatarRequestDto } from '@modules/user/dtos/request/user.legacy.avatar.request.dto';
+import { UserLegacyLoginCodeRequestDto } from '@modules/user/dtos/request/user.legacy.login-code.request.dto';
+import { UserLegacyLoginRequestDto } from '@modules/user/dtos/request/user.legacy.login.request.dto';
+import { UserLegacyRegisterRequestDto } from '@modules/user/dtos/request/user.legacy.register.request.dto';
 import { UserAddMobileNumberRequestDto } from '@modules/user/dtos/request/user.mobile-number.request.dto';
 import {
     UserUpdateProfilePhotoRequestDto,
@@ -41,6 +45,10 @@ import {
 import { UserListResponseDto } from '@modules/user/dtos/response/user.list.response.dto';
 import { UserProfileResponseDto } from '@modules/user/dtos/response/user.profile.response.dto';
 import { UserLoginResponseDto } from '@modules/user/dtos/response/user.login.response.dto';
+import {
+    UserLegacyAuthResponseDto,
+    UserLegacyRegisterResponseDto,
+} from '@modules/user/dtos/response/user.legacy.response.dto';
 import { UserMobileNumberResponseDto } from '@modules/user/dtos/user.mobile-number.dto';
 import { IUser } from '@modules/user/interfaces/user.interface';
 import { EnumUserLoginWith, Prisma } from '@generated/prisma-client';
@@ -53,6 +61,9 @@ import { UserLoginVerifyTwoFactorRequestDto } from '@modules/user/dtos/request/u
 import { AuthTokenResponseDto } from '@modules/auth/dtos/response/auth.token.response.dto';
 import { UserImportRequestDto } from '@modules/user/dtos/request/user.import.request.dto';
 import { UserLoginSetupTwoFactorRequestDto } from '@modules/user/dtos/request/user.login-setup-two-factor.request.dto';
+import { VerificationSendMailRequestDto } from '@modules/verification/dtos/request/verification.send-mail.request.dto';
+import { VerificationCheckRequestDto } from '@modules/verification/dtos/request/verification.check.request.dto';
+import { VerificationStatusResponseDto } from '@modules/verification/dtos/response/verification.status.response.dto';
 
 export interface IUserService {
     validateUserGuard(
@@ -157,6 +168,25 @@ export interface IUserService {
     signUp(
         { countryId, email, password, ...others }: UserSignUpRequestDto
     ): Promise<void>;
+    legacyRegister(
+        body: UserLegacyRegisterRequestDto
+    ): Promise<IResponseReturn<UserLegacyRegisterResponseDto>>;
+    legacyLogin(
+        body: UserLegacyLoginRequestDto
+    ): Promise<IResponseReturn<UserLegacyAuthResponseDto>>;
+    legacyLoginCode(
+        body: UserLegacyLoginCodeRequestDto
+    ): Promise<IResponseReturn<UserLegacyAuthResponseDto>>;
+    legacyUpdateAvatar(
+        userId: string,
+        body: UserLegacyAvatarRequestDto
+    ): Promise<IResponseReturn<UserLegacyAuthResponseDto>>;
+    legacySendMail(
+        body: VerificationSendMailRequestDto
+    ): Promise<IResponseReturn<VerificationStatusResponseDto>>;
+    legacyCheckVerification(
+        query: VerificationCheckRequestDto
+    ): Promise<IResponseReturn<VerificationStatusResponseDto>>;
     verifyEmail(
         { token }: UserVerifyEmailRequestDto
     ): Promise<void>;

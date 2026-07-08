@@ -49,6 +49,7 @@ export class MigrationTemplateEmailNotificationSeed
             mobileNumberVerifiedEmail,
             tempPasswordEmail,
             verificationEmail,
+            verificationCodeEmail,
             welcomeEmail,
             resetTwoFactorByAdminEmail,
             newDeviceLoginEmail,
@@ -63,6 +64,7 @@ export class MigrationTemplateEmailNotificationSeed
             this.notificationEmailTemplateService.emailGetVerifiedMobileNumber(),
             this.notificationEmailTemplateService.emailGetTemporaryPasswordByAdmin(),
             this.notificationEmailTemplateService.emailGetVerificationEmail(),
+            this.notificationEmailTemplateService.emailGetVerificationCode(),
             this.notificationEmailTemplateService.emailGetWelcome(),
             this.notificationEmailTemplateService.emailGetResetTwoFactorByAdmin(),
             this.notificationEmailTemplateService.emailGetNewDeviceLogin(),
@@ -143,6 +145,15 @@ export class MigrationTemplateEmailNotificationSeed
             );
         }
 
+        if (!verificationCodeEmail) {
+            this.logger.log(
+                'Verification Code Email template missing, importing...'
+            );
+            promises.push(
+                this.notificationEmailTemplateService.emailImportVerificationCode()
+            );
+        }
+
         if (!welcomeEmail) {
             this.logger.log('Welcome Email template missing, importing...');
             promises.push(
@@ -213,6 +224,7 @@ export class MigrationTemplateEmailNotificationSeed
                 this.notificationEmailTemplateService.emailDeleteVerifiedMobileNumber(),
                 this.notificationEmailTemplateService.emailDeleteTemporaryPasswordByAdmin(),
                 this.notificationEmailTemplateService.emailDeleteVerificationEmail(),
+                this.notificationEmailTemplateService.emailDeleteVerificationCode(),
                 this.notificationEmailTemplateService.emailDeleteWelcome(),
                 this.notificationEmailTemplateService.emailDeleteResetTwoFactorByAdmin(),
                 this.notificationEmailTemplateService.emailDeleteNewDeviceLogin(),

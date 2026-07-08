@@ -25,6 +25,9 @@ export interface INotificationTemplateService {
     emailImportVerificationEmail(): Promise<boolean>;
     emailGetVerificationEmail(): Promise<GetTemplateCommandOutput | null>;
     emailDeleteVerificationEmail(): Promise<boolean>;
+    emailImportVerificationCode(): Promise<boolean>;
+    emailGetVerificationCode(): Promise<GetTemplateCommandOutput | null>;
+    emailDeleteVerificationCode(): Promise<boolean>;
     emailImportVerifiedEmail(): Promise<boolean>;
     emailGetVerifiedEmail(): Promise<GetTemplateCommandOutput | null>;
     emailDeleteVerifiedEmail(): Promise<boolean>;

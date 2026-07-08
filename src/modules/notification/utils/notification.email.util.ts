@@ -7,6 +7,7 @@ import {
     INotificationNewDeviceLoginPayload,
     INotificationPublishTermPolicyPayload,
     INotificationTemporaryPasswordPayload,
+    INotificationVerificationCodePayload,
     INotificationVerificationEmailPayload,
     INotificationVerifiedEmailPayload,
     INotificationVerifiedMobileNumberPayload,
@@ -207,6 +208,49 @@ export class NotificationEmailUtil {
             {
                 deduplication: {
                     id: `${EnumNotificationProcess.verificationEmail}-${userId}`,
+                    ttl: expiredInMinutes * 60 * 1000,
+                },
+                priority: EnumQueuePriority.high,
+            }
+        );
+    }
+
+    async sendVerificationCode(
+        {
+            email,
+            username,
+            userId,
+            notificationId,
+        }: INotificationEmailSendPayload,
+        {
+            code,
+            expiredInMinutes,
+            purpose,
+            target,
+        }: INotificationVerificationCodePayload
+    ): Promise<void> {
+        const payload: INotificationEmailWorkerPayload<INotificationVerificationCodePayload> =
+            {
+                send: {
+                    userId,
+                    email,
+                    username,
+                    notificationId,
+                },
+                data: {
+                    code,
+                    expiredInMinutes,
+                    purpose,
+                    target,
+                },
+            };
+
+        await this.emailQueue.add(
+            EnumNotificationProcess.verificationCode,
+            payload,
+            {
+                deduplication: {
+                    id: `${EnumNotificationProcess.verificationCode}-${purpose}-${target}`,
                     ttl: expiredInMinutes * 60 * 1000,
                 },
                 priority: EnumQueuePriority.high,

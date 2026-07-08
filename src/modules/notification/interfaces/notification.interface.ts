@@ -21,6 +21,13 @@ export interface INotificationVerificationEmailPayload {
     reference: string;
 }
 
+export interface INotificationVerificationCodePayload {
+    code: string;
+    expiredInMinutes: number;
+    purpose: string;
+    target: string;
+}
+
 export type INotificationVerifiedEmailPayload = Pick<
     INotificationVerificationEmailPayload,
     'reference'

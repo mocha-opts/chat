@@ -61,6 +61,7 @@ import {
     Verification,
 } from '@generated/prisma-client';
 import { ActivityLogUtil } from '@modules/activity-log/utils/activity-log.util';
+import { EnumAwsS3Accessibility } from '@common/aws/enums/aws.enum';
 
 @Injectable()
 export class UserRepository {
@@ -208,6 +209,25 @@ export class UserRepository {
     async findOneWithRoleByEmail(email: string): Promise<IUser | null> {
         return this.databaseService.user.findUnique({
             where: { email, deletedAt: null },
+            include: {
+                role: true,
+                twoFactor: true,
+            },
+        });
+    }
+
+    async findOneWithRoleByMobileNumber(
+        number: string
+    ): Promise<IUser | null> {
+        return this.databaseService.user.findFirst({
+            where: {
+                deletedAt: null,
+                mobileNumbers: {
+                    some: {
+                        number,
+                    },
+                },
+            },
             include: {
                 role: true,
                 twoFactor: true,
@@ -376,6 +396,19 @@ export class UserRepository {
     async existByUsername(username: string): Promise<{ id: string } | null> {
         return this.databaseService.user.findUnique({
             where: { username },
+            select: { id: true },
+        });
+    }
+
+    async existByMobileNumber(number: string): Promise<{ id: string } | null> {
+        return this.databaseService.user.findFirst({
+            where: {
+                mobileNumbers: {
+                    some: {
+                        number,
+                    },
+                },
+            },
             select: { id: true },
         });
     }
@@ -1468,6 +1501,190 @@ export class UserRepository {
         ]);
 
         return user;
+    }
+
+    async signUpLegacy(
+        userId: string,
+        username: string,
+        roleId: string,
+        country: Country,
+        phone: string,
+        email: string,
+        {
+            passwordCreated,
+            passwordExpired,
+            passwordHash,
+            passwordPeriodExpired,
+        }: IAuthPassword,
+        { ipAddress, userAgent, geoLocation }: IRequestLog
+    ): Promise<IUser> {
+        const termPolicies = await this.databaseService.termPolicy.findMany({
+            where: {
+                type: {
+                    in: [
+                        EnumTermPolicyType.termsOfService,
+                        EnumTermPolicyType.privacy,
+                    ],
+                },
+                status: EnumTermPolicyStatus.published,
+            },
+            select: {
+                id: true,
+            },
+        });
+        const phoneCode = country.phoneCode[0] ?? '';
+
+        const [user] = await this.databaseService.$transaction([
+            this.databaseService.user.create({
+                data: {
+                    id: userId,
+                    email,
+                    countryId: country.id,
+                    name: username,
+                    roleId,
+                    signUpFrom: EnumUserSignUpFrom.website,
+                    signUpWith: EnumUserSignUpWith.credential,
+                    username,
+                    isVerified: true,
+                    verifiedAt: passwordCreated,
+                    status: EnumUserStatus.active,
+                    passwordCreated,
+                    passwordExpired,
+                    password: passwordHash,
+                    passwordAttempt: 0,
+                    passwordHistories: {
+                        create: {
+                            password: passwordHash,
+                            type: EnumPasswordHistoryType.signUp,
+                            expiredAt: passwordPeriodExpired,
+                            createdAt: passwordCreated,
+                            createdBy: userId,
+                        },
+                    },
+                    mobileNumbers: {
+                        create: {
+                            countryId: country.id,
+                            phoneCode,
+                            number: phone,
+                            isVerified: true,
+                            verifiedAt: passwordCreated,
+                            createdBy: userId,
+                        },
+                    },
+                    balance: {
+                        create: {
+                            balance: new Prisma.Decimal('1000.00'),
+                        },
+                    },
+                    termPolicy: {
+                        [EnumTermPolicyType.cookies]: false,
+                        [EnumTermPolicyType.marketing]: false,
+                        [EnumTermPolicyType.privacy]: true,
+                        [EnumTermPolicyType.termsOfService]: true,
+                    },
+                    createdBy: userId,
+                    deletedAt: null,
+                    activityLogs: {
+                        create: {
+                            action: EnumActivityLogAction.userSignedUp,
+                            description: this.activityLogUtil.getDescription(
+                                EnumActivityLogAction.userSignedUp
+                            ),
+                            ipAddress,
+                            userAgent:
+                                this.databaseUtil.toPlainObject(userAgent),
+                            geoLocation:
+                                this.databaseUtil.toPlainObject(geoLocation),
+                            createdBy: userId,
+                        },
+                    },
+                    notificationSettings: {
+                        createMany: {
+                            data: Object.values(EnumNotificationChannel)
+                                .map(channel =>
+                                    Object.values(EnumNotificationType).map(
+                                        type => ({
+                                            channel,
+                                            type,
+                                            isActive: true,
+                                        })
+                                    )
+                                )
+                                .flat(),
+                        },
+                    },
+                    twoFactor: {
+                        create: {
+                            enabled: false,
+                            requiredSetup: false,
+                            createdBy: userId,
+                        },
+                    },
+                },
+                include: {
+                    role: true,
+                    twoFactor: true,
+                },
+            }),
+            ...termPolicies.map(termPolicy =>
+                this.databaseService.termPolicyUserAcceptance.create({
+                    data: {
+                        userId,
+                        termPolicyId: termPolicy.id,
+                        createdBy: userId,
+                    },
+                })
+            ),
+        ]);
+
+        return user;
+    }
+
+    async updateLegacyAvatar(
+        userId: string,
+        avatarUrl: string,
+        { ipAddress, userAgent, geoLocation }: IRequestLog
+    ): Promise<IUserProfile> {
+        return this.databaseService.user.update({
+            where: { id: userId, deletedAt: null },
+            data: {
+                avatar: avatarUrl,
+                photo: {
+                    bucket: 'legacy',
+                    key: avatarUrl,
+                    cdnUrl: avatarUrl,
+                    completedUrl: avatarUrl,
+                    mime: 'application/octet-stream',
+                    extension: '',
+                    access: EnumAwsS3Accessibility.public,
+                    size: 0,
+                },
+                updatedBy: userId,
+                activityLogs: {
+                    create: {
+                        action: EnumActivityLogAction.userUpdatePhotoProfile,
+                        description: this.activityLogUtil.getDescription(
+                            EnumActivityLogAction.userUpdatePhotoProfile
+                        ),
+                        ipAddress,
+                        userAgent: this.databaseUtil.toPlainObject(userAgent),
+                        geoLocation:
+                            this.databaseUtil.toPlainObject(geoLocation),
+                        createdBy: userId,
+                    },
+                },
+            },
+            include: {
+                role: true,
+                country: true,
+                twoFactor: true,
+                mobileNumbers: {
+                    include: {
+                        country: true,
+                    },
+                },
+            },
+        });
     }
 
     async forgotPassword(

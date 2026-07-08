@@ -5,6 +5,7 @@ import {
     INotificationNewDeviceLoginPayload,
     INotificationPublishTermPolicyPayload,
     INotificationTemporaryPasswordPayload,
+    INotificationVerificationCodePayload,
     INotificationVerificationEmailPayload,
     INotificationVerifiedEmailPayload,
     INotificationVerifiedMobileNumberPayload,
@@ -60,6 +61,13 @@ export interface INotificationEmailProcessorService {
     processVerificationEmail(
         job: Job<
             INotificationEmailWorkerPayload<INotificationVerificationEmailPayload>,
+            IQueueResponse,
+            EnumNotificationProcess
+        >
+    ): Promise<IQueueResponse>;
+    processVerificationCode(
+        job: Job<
+            INotificationEmailWorkerPayload<INotificationVerificationCodePayload>,
             IQueueResponse,
             EnumNotificationProcess
         >

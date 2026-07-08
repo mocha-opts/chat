@@ -88,6 +88,10 @@ import { UserForgotPasswordResetRequestDto } from '@modules/user/dtos/request/us
 import { UserForgotPasswordRequestDto } from '@modules/user/dtos/request/user.forgot-password.request.dto';
 import { UserGeneratePhotoProfileRequestDto } from '@modules/user/dtos/request/user.generate-photo-profile.request.dto';
 import { UserLoginRequestDto } from '@modules/user/dtos/request/user.login.request.dto';
+import { UserLegacyAvatarRequestDto } from '@modules/user/dtos/request/user.legacy.avatar.request.dto';
+import { UserLegacyLoginCodeRequestDto } from '@modules/user/dtos/request/user.legacy.login-code.request.dto';
+import { UserLegacyLoginRequestDto } from '@modules/user/dtos/request/user.legacy.login.request.dto';
+import { UserLegacyRegisterRequestDto } from '@modules/user/dtos/request/user.legacy.register.request.dto';
 import { UserAddMobileNumberRequestDto } from '@modules/user/dtos/request/user.mobile-number.request.dto';
 import {
     UserUpdateProfilePhotoRequestDto,
@@ -104,11 +108,16 @@ import {
 import { UserListResponseDto } from '@modules/user/dtos/response/user.list.response.dto';
 import { UserProfileResponseDto } from '@modules/user/dtos/response/user.profile.response.dto';
 import { UserLoginResponseDto } from '@modules/user/dtos/response/user.login.response.dto';
+import {
+    UserLegacyAuthResponseDto,
+    UserLegacyRegisterResponseDto,
+} from '@modules/user/dtos/response/user.legacy.response.dto';
 import { UserTwoFactorSetupResponseDto } from '@modules/user/dtos/response/user.two-factor-setup.response.dto';
 import { UserTwoFactorStatusResponseDto } from '@modules/user/dtos/response/user.two-factor-status.response.dto';
 import { UserMobileNumberResponseDto } from '@modules/user/dtos/user.mobile-number.dto';
 import {
     IUser,
+    IUserLegacyPhoto,
     IUserVerificationEmailCreate,
 } from '@modules/user/interfaces/user.interface';
 import { IUserService } from '@modules/user/interfaces/user.service.interface';
@@ -116,9 +125,12 @@ import { UserRepository } from '@modules/user/repositories/user.repository';
 import { UserUtil } from '@modules/user/utils/user.util';
 import { Injectable, Logger } from '@nestjs/common';
 import {
+    EnumDevicePlatform,
     EnumUserLoginFrom,
     EnumUserLoginWith,
     EnumUserStatus,
+    EnumVerificationCodeChannel,
+    EnumVerificationCodePurpose,
     EnumVerificationType,
     Prisma,
 } from '@generated/prisma-client';
@@ -142,6 +154,10 @@ import { RequestStoreService } from '@common/request/services/request.store.serv
 import { RequestLogStoreKey } from '@common/request/constants/request.constant';
 import { ActivityLogMetadataStoreKey } from '@modules/activity-log/constants/activity-log.constant';
 import { IActivityLogMetadata } from '@modules/activity-log/interfaces/activity-log.interface';
+import { VerificationService } from '@modules/verification/services/verification.service';
+import { VerificationSendMailRequestDto } from '@modules/verification/dtos/request/verification.send-mail.request.dto';
+import { VerificationCheckRequestDto } from '@modules/verification/dtos/request/verification.check.request.dto';
+import { VerificationStatusResponseDto } from '@modules/verification/dtos/response/verification.status.response.dto';
 
 @Injectable()
 export class UserService implements IUserService {
@@ -167,7 +183,8 @@ export class UserService implements IUserService {
         private readonly authTwoFactorUtil: AuthTwoFactorUtil,
         private readonly configService: ConfigService,
         private readonly databaseUtil: DatabaseUtil,
-        private readonly requestStoreService: RequestStoreService
+        private readonly requestStoreService: RequestStoreService,
+        private readonly verificationService: VerificationService
     ) {
         this.userRoleName =
             this.configService.get<string>('user.default.role')!;
@@ -1118,6 +1135,192 @@ export class UserService implements IUserService {
         }
     }
 
+    async legacyRegister({
+        phone,
+        password: passwordString,
+        code,
+    }: UserLegacyRegisterRequestDto): Promise<
+        IResponseReturn<UserLegacyRegisterResponseDto>
+    > {
+        const requestLog: IRequestLog =
+            this.requestStoreService.get<IRequestLog>(RequestLogStoreKey)!;
+        const email = this.createLegacyEmail(phone);
+
+        const [role, country, emailExist, phoneExist] = await Promise.all([
+            this.roleRepository.existByName(this.userRoleName),
+            this.countryRepository.findOneByAlpha2Code(this.userCountryName),
+            this.userRepository.existByEmail(email),
+            this.userRepository.existByMobileNumber(phone),
+        ]);
+        if (!role) {
+            throw new RoleNotFoundException();
+        } else if (!country) {
+            throw new CountryNotFoundException();
+        } else if (emailExist) {
+            throw new UserEmailExistException();
+        } else if (phoneExist) {
+            throw new UserMobileNumberExistException();
+        }
+
+        await this.verificationService.consume(
+            phone,
+            code,
+            EnumVerificationCodePurpose.register,
+            EnumVerificationCodeChannel.email
+        );
+
+        try {
+            const userId = this.databaseUtil.createId();
+            const password = this.authUtil.createPassword(
+                userId,
+                passwordString
+            );
+            const randomUsername = this.userUtil.createRandomUsername();
+
+            await this.userRepository.signUpLegacy(
+                userId,
+                randomUsername,
+                role.id,
+                country,
+                phone,
+                email,
+                password,
+                requestLog
+            );
+
+            return { data: { phone } };
+        } catch (err: unknown) {
+            throw new AppUnknownException(err);
+        }
+    }
+
+    async legacyLogin({
+        phone,
+        password,
+    }: UserLegacyLoginRequestDto): Promise<
+        IResponseReturn<UserLegacyAuthResponseDto>
+    > {
+        const requestLog: IRequestLog =
+            this.requestStoreService.get<IRequestLog>(RequestLogStoreKey)!;
+        const user = await this.userRepository.findOneWithRoleByMobileNumber(
+            phone
+        );
+        if (!user) {
+            throw new UserNotFoundException();
+        } else if (user.status !== EnumUserStatus.active) {
+            throw new UserInactiveForbiddenException();
+        } else if (!user.password) {
+            throw new UserPasswordNotSetException();
+        }
+
+        if (this.authUtil.checkPasswordAttempt(user)) {
+            await this.userRepository.reachMaxPasswordAttempt(
+                user.id,
+                requestLog
+            );
+
+            throw new UserPasswordAttemptMaxException();
+        } else if (!this.authUtil.validatePassword(password, user.password)) {
+            await this.userRepository.increasePasswordAttempt(user.id);
+
+            throw new UserPasswordNotMatchException();
+        }
+
+        await this.userRepository.resetPasswordAttempt(user.id);
+
+        const checkPasswordExpired = this.authUtil.checkPasswordExpired(
+            user.passwordExpired
+        );
+        if (checkPasswordExpired) {
+            throw new UserPasswordExpiredException();
+        }
+
+        return this.legacyCreateLoginResponse(user, phone);
+    }
+
+    async legacyLoginCode({
+        phone,
+        code,
+    }: UserLegacyLoginCodeRequestDto): Promise<
+        IResponseReturn<UserLegacyAuthResponseDto>
+    > {
+        await this.verificationService.consume(
+            phone,
+            code,
+            EnumVerificationCodePurpose.login,
+            EnumVerificationCodeChannel.email
+        );
+
+        const user = await this.userRepository.findOneWithRoleByMobileNumber(
+            phone
+        );
+        if (!user) {
+            throw new UserNotFoundException();
+        } else if (user.status !== EnumUserStatus.active) {
+            throw new UserInactiveForbiddenException();
+        }
+
+        return this.legacyCreateLoginResponse(user, phone);
+    }
+
+    async legacyUpdateAvatar(
+        userId: string,
+        { avatarUrl }: UserLegacyAvatarRequestDto
+    ): Promise<IResponseReturn<UserLegacyAuthResponseDto>> {
+        const requestLog: IRequestLog =
+            this.requestStoreService.get<IRequestLog>(RequestLogStoreKey)!;
+
+        try {
+            const user = await this.userRepository.updateLegacyAvatar(
+                userId,
+                avatarUrl,
+                requestLog
+            );
+
+            return {
+                data: this.mapLegacyAuthResponse(user, ''),
+            };
+        } catch (err: unknown) {
+            throw new AppUnknownException(err);
+        }
+    }
+
+    async legacySendMail({
+        email,
+        phone,
+    }: VerificationSendMailRequestDto): Promise<
+        IResponseReturn<VerificationStatusResponseDto>
+    > {
+        const user = await this.userRepository.findOneWithRoleByMobileNumber(
+            phone
+        );
+        const purpose = user
+            ? EnumVerificationCodePurpose.login
+            : EnumVerificationCodePurpose.register;
+
+        return this.verificationService.sendEmailCode(
+            email,
+            [phone, email],
+            purpose
+        );
+    }
+
+    async legacyCheckVerification({
+        email,
+        code,
+    }: VerificationCheckRequestDto): Promise<
+        IResponseReturn<VerificationStatusResponseDto>
+    > {
+        await this.verificationService.consume(
+            email,
+            code,
+            null,
+            EnumVerificationCodeChannel.email
+        );
+
+        return { data: { status: 'ok' } };
+    }
+
     async verifyEmail({ token }: UserVerifyEmailRequestDto): Promise<void> {
         const requestLog: IRequestLog =
             this.requestStoreService.get<IRequestLog>(RequestLogStoreKey)!;
@@ -1345,6 +1548,80 @@ export class UserService implements IUserService {
         } catch (err: unknown) {
             throw new AppUnknownException(err);
         }
+    }
+
+    private createLegacyEmail(phone: string): Lowercase<string> {
+        return `${phone}@infinite-chat.local` as Lowercase<string>;
+    }
+
+    private createLegacyDevice(
+        target: string,
+        userId: string | null
+    ): DeviceRequestDto {
+        const requestLog: IRequestLog =
+            this.requestStoreService.get<IRequestLog>(RequestLogStoreKey)!;
+        const fingerprintSource = [
+            target,
+            userId ?? 'anonymous',
+            requestLog.ipAddress ?? 'unknown-ip',
+            requestLog.userAgent.ua ?? 'unknown-agent',
+        ].join(':');
+
+        return {
+            fingerprint: `legacy-${this.helperService.sha256Hash(fingerprintSource)}`,
+            name: requestLog.userAgent.ua ?? 'Legacy web client',
+            platform: EnumDevicePlatform.web,
+        };
+    }
+
+    private async legacyCreateLoginResponse(
+        user: IUser,
+        phone: string
+    ): Promise<IResponseReturn<UserLegacyAuthResponseDto>> {
+        const loginAt = this.helperService.dateCreate();
+        const login = await this.handleLogin(
+            user,
+            this.createLegacyDevice(phone, user.id),
+            EnumUserLoginFrom.website,
+            EnumUserLoginWith.credential,
+            loginAt
+        );
+        const tokens = login.data?.tokens;
+        if (!tokens) {
+            throw new AuthTwoFactorMethodRequiredException();
+        }
+
+        return {
+            data: this.mapLegacyAuthResponse(user, tokens.accessToken),
+        };
+    }
+
+    private mapLegacyAuthResponse(
+        user: Pick<
+            IUser,
+            | 'id'
+            | 'legacyId'
+            | 'name'
+            | 'username'
+            | 'avatar'
+            | 'photo'
+            | 'signature'
+            | 'gender'
+            | 'status'
+        >,
+        token: string
+    ): UserLegacyAuthResponseDto {
+        const photo = user.photo as IUserLegacyPhoto | null;
+
+        return {
+            userId: user.legacyId?.toString() ?? user.id,
+            userName: user.name ?? user.username,
+            avatar: user.avatar ?? photo?.completedUrl ?? null,
+            signature: user.signature ?? null,
+            gender: user.gender ?? null,
+            status: user.status,
+            token,
+        };
     }
 
     private async createTokenAndSession(

@@ -41,6 +41,12 @@ export class CountryRepository {
         });
     }
 
+    async findOneByAlpha2Code(alpha2Code: string): Promise<Country | null> {
+        return this.databaseService.country.findUnique({
+            where: { alpha2Code },
+        });
+    }
+
     async findOneById(id: string): Promise<Country | null> {
         return this.databaseService.country.findUnique({
             where: { id },
