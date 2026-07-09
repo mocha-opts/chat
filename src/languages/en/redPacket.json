@@ -1,0 +1,16 @@
+{
+    "send": "Red packet sent successfully.",
+    "receive": "Red packet received successfully.",
+    "detail": "Red packet details retrieved successfully.",
+    "error": {
+        "userNotFound": "User not found.",
+        "userInactive": "User is not active.",
+        "forbidden": "You cannot operate another user's red packet.",
+        "conversationNotFound": "Conversation not found.",
+        "notFound": "Red packet not found.",
+        "amountInvalid": "Red packet amount or count is invalid.",
+        "typeInvalid": "Red packet type or message type is invalid.",
+        "insufficientBalance": "Insufficient balance.",
+        "claimFailed": "Red packet claim failed. Please retry."
+    }
+}

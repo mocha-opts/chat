@@ -714,4 +714,17 @@ flowchart LR
 - 同一个 Nest 应用通过 hybrid Kafka transport 消费 `im.message.persist`。consumer 按 `messageId` 幂等落库，重复消费不会重复插入。
 - 实时推送直接调用阶段 4 `RealtimeService.pushMessage`。旧 Java 推送字段 `seesionName` 和 `sessionAvatr` 保留，用于兼容旧客户端拼写。
 - 离线消息接口按当前用户 normal 会话成员关系聚合 `messages`，按 `time` 过滤，返回发送人信息、旧数字消息类型、消息 body、红包封面文案字段和会话信息。
+
+### 12.8 阶段 6 实现基线
+
+2026-07-09 阶段 6 已新增 `red-packet` 模块，并挂载旧 `/api/v1/chat/redPacket/send`、`/receive` 和 `/{redPacketId}` 路径。
+
+- 发红包接口保持旧请求体，兼容 `sessionId`、`receiveUserId`、`sendUserId`、`type`、`sessionType` 和 `body.redPacketType/totalAmount/totalCount/redPacketWrapperText`。
+- 金额在 service 和 repository 中使用 `Prisma.Decimal`，Redis 预拆金额使用分为单位的 `bigint` 精确拆分，再以两位小数字符串写入 Redis list。
+- 发红包事务先条件扣减 `UserBalance`，创建 `RedPacket`，写 `BalanceLog(sendRedPacket)`，再初始化 Redis 金额列表和过期 marker。
+- 红包消息发送复用阶段 5 `MessagingService.sendMessage`，消息 body 同时包含 `content`、`redPacketId` 和 `redPacketWrapperText`。发送失败时执行退款补偿，标记红包为 `expired` 并清理 Redis。
+- 领取红包先读取 PostgreSQL 防重复，再使用共享 Redis 连接执行 Lua。Lua 原子判断重复领取并 `rpop` 预拆金额，落库失败时用补偿 Lua 删除领取集合成员并把金额放回 list。
+- 领取落库使用 PostgreSQL 事务，写 `RedPacketReceive`、增加 `UserBalance`、写 `BalanceLog(receiveRedPacket)`，并通过 `remainingCount` 乐观条件防止并发超发。
+- 红包详情返回旧字段：领取列表、发送人、头像、封面文案、红包类型、总金额、总个数、剩余金额、剩余个数和状态。
+- 过期退款由进程内 processor 定时扫描 `unclaimed` 且已过期红包，标记 `refunding`，退还剩余金额，写 `BalanceLog(refundRedPacket)`，最后标记 `expired` 并清理 Redis。
 - 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
