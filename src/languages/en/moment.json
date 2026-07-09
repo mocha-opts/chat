@@ -1,0 +1,20 @@
+{
+    "createMoment": "Moment created successfully.",
+    "deleteMoment": "Moment deleted successfully.",
+    "likeMoment": "Moment liked successfully.",
+    "deleteLike": "Moment like deleted successfully.",
+    "createComment": "Moment comment created successfully.",
+    "deleteComment": "Moment comment deleted successfully.",
+    "list": "Moment list retrieved successfully.",
+    "error": {
+        "userNotFound": "User not found.",
+        "userInactive": "User is not active.",
+        "forbidden": "You cannot operate on another user's moment data.",
+        "notFound": "Moment not found.",
+        "likeNotFound": "Moment like not found.",
+        "commentNotFound": "Moment comment not found.",
+        "parentCommentNotFound": "Parent comment not found.",
+        "contentInvalid": "Moment content is invalid.",
+        "timeInvalid": "Moment sync time is invalid."
+    }
+}

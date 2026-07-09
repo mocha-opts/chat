@@ -3,6 +3,7 @@ import { RouterModule as NestJsRouterModule } from '@nestjs/core';
 import { RoutesAdminModule } from '@routes/routes.admin.module';
 import { RoutesContactModule } from '@routes/routes.contact.module';
 import { RoutesChatModule } from '@routes/routes.chat.module';
+import { RoutesMomentModule } from '@routes/routes.moment.module';
 import { RoutesOfflineModule } from '@routes/routes.offline.module';
 import { RoutesPublicModule } from '@routes/routes.public.module';
 import { RoutesSharedModule } from '@routes/routes.shared.module';
@@ -24,6 +25,7 @@ import { RoutesUserModule } from '@routes/routes.user.module';
         RoutesAdminModule,
         RoutesContactModule,
         RoutesChatModule,
+        RoutesMomentModule,
         RoutesOfflineModule,
         RoutesSharedModule,
         NestJsRouterModule.register([
@@ -50,6 +52,10 @@ import { RoutesUserModule } from '@routes/routes.user.module';
             {
                 path: '/chat',
                 module: RoutesChatModule,
+            },
+            {
+                path: '/moment',
+                module: RoutesMomentModule,
             },
             {
                 path: '/offline',

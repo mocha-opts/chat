@@ -728,3 +728,19 @@ flowchart LR
 - 红包详情返回旧字段：领取列表、发送人、头像、封面文案、红包类型、总金额、总个数、剩余金额、剩余个数和状态。
 - 过期退款由进程内 processor 定时扫描 `unclaimed` 且已过期红包，标记 `refunding`，退还剩余金额，写 `BalanceLog(refundRedPacket)`，最后标记 `expired` 并清理 Redis。
 - 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
+
+### 12.9 阶段 7 实现基线
+
+2026-07-09 阶段 7 已新增 `moment` 模块，并通过 `src/router/routes/routes.moment.module.ts` 挂载旧 `/api/v1/moment/**` 路径。
+
+- 发布朋友圈接口保持旧请求体 `{ userId, text, mediaUrls }`，保存文本和媒体 URL 数组。文本和媒体数组不能同时为空。
+- 删除朋友圈接口保持旧 path 和 query 组合。只有动态作者可以删除，删除使用 `Moment.deletedAt` 软删除，并在同一 PostgreSQL transaction 中把关联点赞和评论标记为删除。
+- 点赞接口通过 `MomentLike(momentId, userId)` 复合唯一约束避免重复点赞。重复点赞会恢复软删除记录并返回同一点赞记录。
+- 取消点赞接口保持旧 query 字段 `likeId` 和 `userId`，只允许点赞发起人取消自己的有效点赞。
+- 评论接口保持旧请求体 `{ userId, comment, parentCommentId }`，支持父评论。父评论必须属于同一动态且未删除。
+- 删除评论接口保持旧 query 字段 `commentId` 和 `userId`，只允许评论作者删除，删除当前评论后标记直接子评论删除。
+- 增量列表接口保持旧 `/list/{userId}?time=` 路径，返回 `createMoment`、`createLike`、`createComment`、`deleteMoment`、`deleteLike`、`deleteComment` 六个集合。
+- 可见范围为当前用户自己和 normal 好友。列表查询按可见动态范围和更新时间同步朋友圈、点赞、评论，避免旧动态上的新增互动漏同步。
+- 旧 Java Long 业务 ID 在兼容响应中统一输出为 string，内部继续使用 PostgreSQL `BigInt`。
+- 发布朋友圈调用 `RealtimeService.pushMoment` 推送给好友。点赞和评论他人动态时推送给动态作者，自己操作自己的动态不发送通知。
+- 阶段 7 不新增微服务，不新增 unit test，不编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
