@@ -758,3 +758,15 @@ flowchart LR
 - `.env.example` 已确认只包含 PostgreSQL、Kafka、Redis 和对象存储等目标配置，没有 MongoDB、Nacos、Feign 或 Gateway 目标配置。
 - README 已明确本项目是模块化单体，PostgreSQL 是必选目标数据库，Kafka 是 IM 事件基础设施，BullMQ 只承担非 IM 后台任务。
 - 本阶段不新增业务功能，不新增 unit test，不编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
+
+### 12.11 阶段 9 实现基线
+
+2026-07-09 阶段 9 已完成第一批质量、安全和 PostgreSQL schema 收口。
+
+- 本地守卫测试覆盖旧 API 路由、controller 装饰器、WebSocket 兼容 path、Kafka dead-letter、日志脱敏和旧配置安全审计。
+- `docs/quality.md` 提供显式开启的真实环境 smoke 和压测入口。真实数据库、Redis、Kafka 和 WebSocket 联调仍需要可重置测试环境。
+- `docs/security-audit.md` 记录旧配置凭据轮换要求和日志脱敏字段族，不复述任何旧明文值。
+- Kafka outbox 达到最大重试后投递 `im.dead-letter`，死信 payload 只保留排障所需标识和错误摘要。
+- PostgreSQL schema 已补齐面向当前 repository 查询路径的索引和约束：手机号解析、验证码最新有效码、好友申请分页和接受、群成员列表、message outbox 重试扫描、红包领取详情、朋友圈增量同步。
+- 本阶段不新增微服务，不把 IM 事件改回 BullMQ，不改变 PostgreSQL 作为权威业务数据库的目标。
+- 本阶段没有执行 `db:migrate`、`db:push`、`migration:*` 或任何数据库写入命令。部署前仍需按环境生成并应用 Prisma migration。

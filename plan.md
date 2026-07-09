@@ -498,7 +498,7 @@ pnpm lint
 - [ ] 压测消息发送、离线拉取、红包领取。
 - [x] 审计旧配置中的明文凭据并标记全部轮换。
 - [x] 日志脱敏，禁止输出 token、验证码、密码、余额敏感上下文。
-- [ ] 增加 PostgreSQL 索引和约束。
+- [x] 增加 PostgreSQL 索引和约束。
 - [x] 增加 Kafka 消费失败和 dead-letter 监控。
 
 实现记录：
@@ -508,7 +508,7 @@ pnpm lint
 - 2026-07-09 已扩展 ACK logger redaction 字段，覆盖 token、Authorization、验证码、密码和余额敏感上下文。
 - 2026-07-09 已在 Kafka outbox 达到最大重试失败时投递 `im.dead-letter`，死信 payload 只包含 outboxId、messageId、failedTopic、messageKey、retryCount、error 和 failedAt。
 - 2026-07-09 已新增 `docs/quality.md` 和显式开启的质量脚本：`pnpm quality:legacy:e2e`、`pnpm quality:legacy:realtime`、`pnpm quality:legacy:perf`。脚本覆盖注册登录、好友、群聊、消息、红包、朋友圈、WebSocket 心跳、Kafka topic 和基础压测入口，但真实执行仍需要测试环境设置 `INFINITECHAT_E2E=1` 和测试账号数据。
-- PostgreSQL 索引和约束需要编辑 `prisma/schema.prisma` 并生成迁移，当前红线禁止未授权编辑 Prisma schema 或运行 migration，因此保留为单独授权阶段。
+- 2026-07-09 已在用户授权 Prisma schema 后补齐 PostgreSQL 索引和约束，覆盖手机号查询、验证码消费、好友申请、会话成员、outbox 重试、红包领取详情和朋友圈增量同步。未执行 `db:migrate`、`db:push`、`migration:*` 或任何数据库写入命令。
 
 验证：
 

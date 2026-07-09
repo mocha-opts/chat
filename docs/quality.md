@@ -108,6 +108,7 @@ INFINITECHAT_PERF_CONCURRENCY=4
 
 - 本地 Jest 守卫测试：路由表、WebSocket path、Kafka dead-letter、日志脱敏和安全审计。
 - 显式启用的真实环境 smoke 和压测入口。
+- PostgreSQL schema 已补齐当前兼容模块热路径所需的索引和唯一约束。
 
 仍需真实环境执行：
 
@@ -115,6 +116,6 @@ INFINITECHAT_PERF_CONCURRENCY=4
 - WebSocket 和 Kafka 联调。
 - 消息发送、离线拉取、红包领取压测。
 
-仍需单独授权：
+仍需部署前执行：
 
-- PostgreSQL 索引和约束。该项需要编辑 `prisma/schema.prisma` 并生成迁移。
+- 为本次 `prisma/schema.prisma` 变更生成并应用 Prisma migration。本阶段未执行 `db:migrate`、`db:push`、`migration:*` 或任何数据库写入命令。

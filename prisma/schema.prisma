@@ -93,6 +93,7 @@ model UserMobileNumber {
 
   @@unique(fields: [userId, countryId, phoneCode, number])
   @@index(fields: [userId, isVerified])
+  @@index(fields: [number, isVerified])
   @@map("UserMobiles")
 }
 
@@ -493,6 +494,8 @@ model VerificationCode {
   createdAt DateTime                    @default(now()) @map("created_at")
 
   @@index(fields: [target, channel, purpose, expiredAt])
+  @@index(fields: [target, channel, purpose, usedAt, createdAt(sort: Desc)])
+  @@index(fields: [target, channel, usedAt, createdAt(sort: Desc)])
   @@index(fields: [purpose, usedAt])
   @@map("verification_codes")
 }
@@ -510,8 +513,10 @@ model FriendApplication {
   sender   User @relation("FriendApplicationSender", fields: [senderId], references: [id])
   receiver User @relation("FriendApplicationReceiver", fields: [receiverId], references: [id])
 
-  @@index(fields: [senderId, receiverId, status])
+  @@index(fields: [senderId, receiverId, status, createdAt(sort: Desc)])
+  @@index(fields: [senderId, createdAt(sort: Desc)])
   @@index(fields: [receiverId, status, createdAt(sort: Desc)])
+  @@index(fields: [receiverId, createdAt(sort: Desc)])
   @@map("friend_applications")
 }
 
@@ -563,6 +568,7 @@ model ConversationMember {
   @@unique(fields: [conversationId, userId])
   @@index(fields: [userId, status])
   @@index(fields: [conversationId, role, status])
+  @@index(fields: [conversationId, status, createdAt(sort: Asc)])
   @@map("conversation_members")
 }
 
@@ -607,6 +613,8 @@ model MessageOutbox {
 
   @@unique(fields: [messageId, topic])
   @@index(fields: [status, nextRetryAt])
+  @@index(fields: [status, retryCount, nextRetryAt, createdAt(sort: Asc)])
+  @@index(fields: [status, updatedAt, createdAt(sort: Asc)])
   @@index(fields: [topic, status, createdAt(sort: Desc)])
   @@map("message_outboxes")
 }
@@ -647,6 +655,7 @@ model RedPacketReceive {
   receiver  User      @relation("RedPacketReceiveReceiver", fields: [receiverId], references: [id])
 
   @@unique(fields: [redPacketId, receiverId])
+  @@index(fields: [redPacketId, receivedAt(sort: Asc)])
   @@index(fields: [receiverId, receivedAt(sort: Desc)])
   @@map("red_packet_receives")
 }
@@ -680,6 +689,7 @@ model Moment {
   comments MomentComment[] @relation("MomentComments")
 
   @@index(fields: [userId, deletedAt, createdAt(sort: Desc)])
+  @@index(fields: [userId, updatedAt(sort: Asc), createdAt(sort: Desc)])
   @@index(fields: [createdAt(sort: Desc)])
   @@map("moments")
 }
@@ -696,7 +706,9 @@ model MomentLike {
   user   User   @relation("MomentLikeUser", fields: [userId], references: [id])
 
   @@unique(fields: [momentId, userId])
+  @@index(fields: [momentId, isDeleted])
   @@index(fields: [userId, isDeleted, createdAt(sort: Desc)])
+  @@index(fields: [userId, updatedAt(sort: Asc)])
   @@map("moment_likes")
 }
 
@@ -716,7 +728,9 @@ model MomentComment {
   children MomentComment[] @relation("MomentCommentReplies")
 
   @@index(fields: [momentId, isDeleted, createdAt(sort: Desc)])
+  @@index(fields: [momentId, parentCommentId, isDeleted])
   @@index(fields: [userId, isDeleted, createdAt(sort: Desc)])
+  @@index(fields: [userId, updatedAt(sort: Asc)])
   @@index(fields: [parentCommentId])
   @@map("moment_comments")
 }
