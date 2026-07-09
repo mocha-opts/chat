@@ -507,6 +507,7 @@ pnpm lint
 - 2026-07-09 已新增 `docs/security-audit.md`，记录旧 Java 配置文件审计范围、全部旧凭据需要轮换、日志脱敏字段族和 Kafka dead-letter payload 规则，不复述任何旧明文值。
 - 2026-07-09 已扩展 ACK logger redaction 字段，覆盖 token、Authorization、验证码、密码和余额敏感上下文。
 - 2026-07-09 已在 Kafka outbox 达到最大重试失败时投递 `im.dead-letter`，死信 payload 只包含 outboxId、messageId、failedTopic、messageKey、retryCount、error 和 failedAt。
+- 2026-07-09 已新增 `docs/quality.md` 和显式开启的质量脚本：`pnpm quality:legacy:e2e`、`pnpm quality:legacy:realtime`、`pnpm quality:legacy:perf`。脚本覆盖注册登录、好友、群聊、消息、红包、朋友圈、WebSocket 心跳、Kafka topic 和基础压测入口，但真实执行仍需要测试环境设置 `INFINITECHAT_E2E=1` 和测试账号数据。
 - PostgreSQL 索引和约束需要编辑 `prisma/schema.prisma` 并生成迁移，当前红线禁止未授权编辑 Prisma schema 或运行 migration，因此保留为单独授权阶段。
 
 验证：
