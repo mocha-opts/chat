@@ -35,6 +35,7 @@
         "quality:legacy:e2e": "ts-node --transpile-only scripts/quality/legacy-quality.ts http-smoke",
         "quality:legacy:realtime": "ts-node --transpile-only scripts/quality/legacy-quality.ts realtime-kafka-smoke",
         "quality:legacy:perf": "ts-node --transpile-only scripts/quality/legacy-quality.ts perf",
+        "quality:legacy:full": "ts-node --transpile-only scripts/quality/legacy-quality.ts full-strict",
         "package:upgrade": "npx npm-check-updates -u",
         "package:check": "npx npm-check-updates -i",
         "migration": "nest build migration --config nest-cli.json && node dist/migration.js",

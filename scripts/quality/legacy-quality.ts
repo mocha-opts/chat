@@ -2,7 +2,11 @@ import { Kafka, logLevel } from 'kafkajs';
 import WebSocket from 'ws';
 
 type IHttpMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST';
-type ILegacyQualityMode = 'http-smoke' | 'perf' | 'realtime-kafka-smoke';
+type ILegacyQualityMode =
+    | 'full-strict'
+    | 'http-smoke'
+    | 'perf'
+    | 'realtime-kafka-smoke';
 type IJsonRecord = Record<string, unknown>;
 
 interface IHttpRequestOptions {
@@ -49,6 +53,13 @@ class LegacyQualityRunner {
         this.ensureEnabled();
 
         switch (mode) {
+            case 'full-strict':
+                this.validateFullRunEnvironment();
+                await this.runHttpSmoke();
+                await this.runRealtimeKafkaSmoke();
+                await this.runPerformanceProbe();
+                this.printResult('legacy full quality probe completed');
+                return;
             case 'http-smoke':
                 await this.runHttpSmoke();
                 return;
@@ -96,12 +107,15 @@ class LegacyQualityRunner {
             .split(',')
             .map(value => value.trim())
             .filter(Boolean);
-        const selected = scenarios.length > 0 ? scenarios : ['message', 'offline'];
+        const selected =
+            scenarios.length > 0 ? scenarios : ['message', 'offline'];
         const results: IScenarioResult[] = [];
 
         for (const scenario of selected) {
             if (scenario === 'message') {
-                results.push(await this.measure('message', () => this.sendMessage(auth)));
+                results.push(
+                    await this.measure('message', () => this.sendMessage(auth))
+                );
             } else if (scenario === 'offline') {
                 results.push(
                     await this.measure('offline', () =>
@@ -130,7 +144,10 @@ class LegacyQualityRunner {
         const email = this.optionalEnv('INFINITECHAT_E2E_EMAIL');
         const phone = this.optionalEnv('INFINITECHAT_E2E_PHONE');
         if (!email || !phone) {
-            this.printSkip('sendMail', 'INFINITECHAT_E2E_EMAIL or phone missing');
+            this.printSkip(
+                'sendMail',
+                'INFINITECHAT_E2E_EMAIL or phone missing'
+            );
             return;
         }
 
@@ -235,7 +252,10 @@ class LegacyQualityRunner {
     private async maybeAddFriend(auth: ILegacyAuthData): Promise<void> {
         const receiverId = this.optionalEnv('INFINITECHAT_E2E_FRIEND_USER_ID');
         if (!receiverId) {
-            this.printSkip('addFriend', 'INFINITECHAT_E2E_FRIEND_USER_ID missing');
+            this.printSkip(
+                'addFriend',
+                'INFINITECHAT_E2E_FRIEND_USER_ID missing'
+            );
             return;
         }
 
@@ -295,9 +315,13 @@ class LegacyQualityRunner {
             return;
         }
 
-        await this.request('GET', `/api/v1/contact/group/${sessionId}/members`, {
-            token: this.token,
-        });
+        await this.request(
+            'GET',
+            `/api/v1/contact/group/${sessionId}/members`,
+            {
+                token: this.token,
+            }
+        );
         this.printResult('group members accepted');
     }
 
@@ -305,7 +329,10 @@ class LegacyQualityRunner {
         auth: ILegacyAuthData
     ): Promise<IMessageData | null> {
         if (!this.optionalEnv('INFINITECHAT_E2E_SESSION_ID')) {
-            this.printSkip('sendMessage', 'INFINITECHAT_E2E_SESSION_ID missing');
+            this.printSkip(
+                'sendMessage',
+                'INFINITECHAT_E2E_SESSION_ID missing'
+            );
             return null;
         }
 
@@ -314,7 +341,9 @@ class LegacyQualityRunner {
 
     private async sendMessage(auth: ILegacyAuthData): Promise<IMessageData> {
         const sessionId = this.requiredEnv('INFINITECHAT_E2E_SESSION_ID');
-        const receiverId = this.optionalEnv('INFINITECHAT_E2E_RECEIVER_USER_ID');
+        const receiverId = this.optionalEnv(
+            'INFINITECHAT_E2E_RECEIVER_USER_ID'
+        );
         const envelope = await this.request<IMessageData>(
             'POST',
             '/api/v1/chat/session',
@@ -354,7 +383,9 @@ class LegacyQualityRunner {
 
     private async sendRedPacket(auth: ILegacyAuthData): Promise<IMessageData> {
         const sessionId = this.requiredEnv('INFINITECHAT_E2E_SESSION_ID');
-        const receiverId = this.optionalEnv('INFINITECHAT_E2E_RECEIVER_USER_ID');
+        const receiverId = this.optionalEnv(
+            'INFINITECHAT_E2E_RECEIVER_USER_ID'
+        );
         const envelope = await this.request<IMessageData>(
             'POST',
             '/api/v1/chat/redPacket/send',
@@ -385,7 +416,9 @@ class LegacyQualityRunner {
         );
         const data = this.requireData(envelope, 'sendRedPacket');
 
-        this.printResult(`red packet send accepted for message ${data.messageId}`);
+        this.printResult(
+            `red packet send accepted for message ${data.messageId}`
+        );
         await this.maybeReceiveRedPacket(auth, data);
 
         return data;
@@ -397,21 +430,52 @@ class LegacyQualityRunner {
     ): Promise<void> {
         const redPacketId = this.extractString(message.body, 'redPacketId');
         if (!redPacketId) {
-            this.printSkip('receiveRedPacket', 'redPacketId missing from response');
+            this.printSkip(
+                'receiveRedPacket',
+                'redPacketId missing from response'
+            );
             return;
         }
+        const receiverAuth = await this.maybeCreateRedPacketReceiverAuth();
+        const receiveUserId = receiverAuth?.userId ?? auth.userId;
+        const receiveToken = receiverAuth?.token ?? auth.token;
 
         await this.request('POST', '/api/v1/chat/redPacket/receive', {
             body: {
-                userId: auth.userId,
+                userId: receiveUserId,
                 redPacketId,
             },
-            token: auth.token,
+            token: receiveToken,
         });
         this.printResult('red packet receive accepted');
     }
 
-    private async maybeReadOfflineMessages(auth: ILegacyAuthData): Promise<void> {
+    private async maybeCreateRedPacketReceiverAuth(): Promise<ILegacyAuthData | null> {
+        const phone = this.optionalEnv(
+            'INFINITECHAT_E2E_RED_PACKET_RECEIVER_PHONE'
+        );
+        const password = this.optionalEnv(
+            'INFINITECHAT_E2E_RED_PACKET_RECEIVER_PASSWORD'
+        );
+        if (!phone || !password) {
+            return null;
+        }
+
+        const envelope = await this.request<ILegacyAuthData>(
+            'POST',
+            '/api/v1/user/login',
+            {
+                body: { phone, password },
+                token: null,
+            }
+        );
+
+        return this.requireData(envelope, 'redPacketReceiverLogin');
+    }
+
+    private async maybeReadOfflineMessages(
+        auth: ILegacyAuthData
+    ): Promise<void> {
         if (!this.optionalEnv('INFINITECHAT_E2E_OFFLINE_TIME')) {
             this.printSkip(
                 'offlineMessages',
@@ -514,7 +578,9 @@ class LegacyQualityRunner {
                 'im.realtime.push',
                 'im.dead-letter',
             ];
-            const missing = requiredTopics.filter(topic => !topics.includes(topic));
+            const missing = requiredTopics.filter(
+                topic => !topics.includes(topic)
+            );
             if (missing.length > 0) {
                 throw new Error(`Missing Kafka topics: ${missing.join(', ')}`);
             }
@@ -529,8 +595,14 @@ class LegacyQualityRunner {
         name: string,
         action: () => Promise<unknown>
     ): Promise<IScenarioResult> {
-        const iterations = this.positiveIntEnv('INFINITECHAT_PERF_ITERATIONS', 10);
-        const concurrency = this.positiveIntEnv('INFINITECHAT_PERF_CONCURRENCY', 2);
+        const iterations = this.positiveIntEnv(
+            'INFINITECHAT_PERF_ITERATIONS',
+            10
+        );
+        const concurrency = this.positiveIntEnv(
+            'INFINITECHAT_PERF_CONCURRENCY',
+            2
+        );
         const durations: number[] = [];
         let nextIndex = 0;
 
@@ -622,6 +694,57 @@ class LegacyQualityRunner {
         }
     }
 
+    private validateFullRunEnvironment(): void {
+        const required = [
+            'INFINITECHAT_BASE_URL',
+            'INFINITECHAT_E2E_PHONE',
+            'INFINITECHAT_E2E_PASSWORD',
+            'INFINITECHAT_E2E_EMAIL',
+            'INFINITECHAT_E2E_REGISTER_PHONE',
+            'INFINITECHAT_E2E_REGISTER_PASSWORD',
+            'INFINITECHAT_E2E_REGISTER_CODE',
+            'INFINITECHAT_E2E_LOGIN_CODE_PHONE',
+            'INFINITECHAT_E2E_LOGIN_CODE',
+            'INFINITECHAT_E2E_AVATAR_URL',
+            'INFINITECHAT_E2E_USER_ID',
+            'INFINITECHAT_E2E_SEARCH_PHONE',
+            'INFINITECHAT_E2E_FRIEND_USER_ID',
+            'INFINITECHAT_E2E_GROUP_MEMBER_IDS',
+            'INFINITECHAT_E2E_SESSION_ID',
+            'INFINITECHAT_E2E_RECEIVER_USER_ID',
+            'INFINITECHAT_E2E_SESSION_TYPE',
+            'INFINITECHAT_E2E_RED_PACKET_AMOUNT',
+            'INFINITECHAT_E2E_RED_PACKET_RECEIVER_PHONE',
+            'INFINITECHAT_E2E_RED_PACKET_RECEIVER_PASSWORD',
+            'INFINITECHAT_E2E_OFFLINE_TIME',
+            'INFINITECHAT_E2E_MOMENT_TEXT',
+            'INFINITECHAT_KAFKA_BROKERS',
+            'INFINITECHAT_PERF_SCENARIOS',
+            'INFINITECHAT_PERF_ITERATIONS',
+            'INFINITECHAT_PERF_CONCURRENCY',
+        ];
+        const missing = required.filter(name => !this.optionalEnv(name));
+        if (missing.length > 0) {
+            throw new Error(
+                `Missing full quality probe env vars: ${missing.join(', ')}`
+            );
+        }
+
+        const perfScenarios = new Set(
+            this.listEnv('INFINITECHAT_PERF_SCENARIOS')
+        );
+        const missingScenarios = ['message', 'offline', 'redPacket'].filter(
+            scenario => !perfScenarios.has(scenario)
+        );
+        if (missingScenarios.length > 0) {
+            throw new Error(
+                `INFINITECHAT_PERF_SCENARIOS must include ${missingScenarios.join(
+                    ', '
+                )}`
+            );
+        }
+    }
+
     private baseUrl(): string {
         return this.requiredEnv('INFINITECHAT_BASE_URL').replace(/\/+$/, '');
     }
@@ -681,7 +804,9 @@ class LegacyQualityRunner {
     }
 
     private toAuthorization(token: string): string {
-        return token.toLowerCase().startsWith('bearer ') ? token : `Bearer ${token}`;
+        return token.toLowerCase().startsWith('bearer ')
+            ? token
+            : `Bearer ${token}`;
     }
 
     private parseJson(text: string): unknown {
@@ -715,13 +840,16 @@ class LegacyQualityRunner {
 
 const mode = process.argv[2] as ILegacyQualityMode | undefined;
 const allowedModes: ILegacyQualityMode[] = [
+    'full-strict',
     'http-smoke',
     'realtime-kafka-smoke',
     'perf',
 ];
 
 if (!mode || !allowedModes.includes(mode)) {
-    console.error(`Usage: ts-node scripts/quality/legacy-quality.ts ${allowedModes.join('|')}`);
+    console.error(
+        `Usage: ts-node scripts/quality/legacy-quality.ts ${allowedModes.join('|')}`
+    );
     process.exit(1);
 }
 

@@ -12,19 +12,22 @@
 INFINITECHAT_E2E=1 pnpm quality:legacy:e2e
 INFINITECHAT_E2E=1 pnpm quality:legacy:realtime
 INFINITECHAT_E2E=1 pnpm quality:legacy:perf
+INFINITECHAT_E2E=1 pnpm quality:legacy:full
 ```
 
 脚本不会打印 token、验证码、密码或余额值。失败信息只输出接口路径、状态和服务端 message。
 
 ## 公共环境变量
 
-| 变量 | 说明 |
-| ---- | ---- |
-| `INFINITECHAT_E2E` | 必须为 `1`，防止误跑真实环境探测 |
-| `INFINITECHAT_BASE_URL` | 目标 NestJS 应用地址，例如 `http://localhost:3000` |
-| `INFINITECHAT_E2E_PHONE` | 已存在测试账号手机号 |
-| `INFINITECHAT_E2E_PASSWORD` | 已存在测试账号密码 |
-| `INFINITECHAT_E2E_TIMEOUT_MS` | WebSocket 等待超时，默认 `5000` |
+| 变量                                            | 说明                                               |
+| ----------------------------------------------- | -------------------------------------------------- |
+| `INFINITECHAT_E2E`                              | 必须为 `1`，防止误跑真实环境探测                   |
+| `INFINITECHAT_BASE_URL`                         | 目标 NestJS 应用地址，例如 `http://localhost:3000` |
+| `INFINITECHAT_E2E_PHONE`                        | 已存在测试账号手机号                               |
+| `INFINITECHAT_E2E_PASSWORD`                     | 已存在测试账号密码                                 |
+| `INFINITECHAT_E2E_TIMEOUT_MS`                   | WebSocket 等待超时，默认 `5000`                    |
+| `INFINITECHAT_E2E_RED_PACKET_RECEIVER_PHONE`    | 红包领取测试账号手机号，full 探针必填              |
+| `INFINITECHAT_E2E_RED_PACKET_RECEIVER_PASSWORD` | 红包领取测试账号密码，full 探针必填                |
 
 ## Legacy HTTP Smoke
 
@@ -40,20 +43,20 @@ INFINITECHAT_E2E=1 pnpm quality:legacy:e2e
 
 按环境变量启用的场景：
 
-| 场景 | 需要变量 |
-| ---- | -------- |
-| 发送验证码 | `INFINITECHAT_E2E_EMAIL`、`INFINITECHAT_E2E_PHONE` |
-| 注册 | `INFINITECHAT_E2E_REGISTER_PHONE`、`INFINITECHAT_E2E_REGISTER_PASSWORD`、`INFINITECHAT_E2E_REGISTER_CODE` |
-| 验证码登录 | `INFINITECHAT_E2E_LOGIN_CODE_PHONE`、`INFINITECHAT_E2E_LOGIN_CODE` |
-| 更新头像 | `INFINITECHAT_E2E_AVATAR_URL` |
-| 搜索用户 | `INFINITECHAT_E2E_USER_ID`、`INFINITECHAT_E2E_SEARCH_PHONE` |
-| 申请好友 | `INFINITECHAT_E2E_FRIEND_USER_ID` |
-| 创建群聊 | `INFINITECHAT_E2E_GROUP_MEMBER_IDS`，逗号分隔 |
-| 查询群成员 | 创建群聊成功，或提供 `INFINITECHAT_E2E_GROUP_SESSION_ID` |
-| 发送消息 | `INFINITECHAT_E2E_SESSION_ID`，可选 `INFINITECHAT_E2E_RECEIVER_USER_ID`、`INFINITECHAT_E2E_SESSION_TYPE` |
-| 发送红包 | `INFINITECHAT_E2E_SESSION_ID`、`INFINITECHAT_E2E_RED_PACKET_AMOUNT`，可选 `INFINITECHAT_E2E_RED_PACKET_COUNT` |
-| 拉离线消息 | `INFINITECHAT_E2E_OFFLINE_TIME`，格式 `YYYY-MM-DD HH:mm:ss` |
-| 发布朋友圈 | `INFINITECHAT_E2E_MOMENT_TEXT`，可选 `INFINITECHAT_E2E_MOMENT_MEDIA_URLS` |
+| 场景       | 需要变量                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------- |
+| 发送验证码 | `INFINITECHAT_E2E_EMAIL`、`INFINITECHAT_E2E_PHONE`                                                            |
+| 注册       | `INFINITECHAT_E2E_REGISTER_PHONE`、`INFINITECHAT_E2E_REGISTER_PASSWORD`、`INFINITECHAT_E2E_REGISTER_CODE`     |
+| 验证码登录 | `INFINITECHAT_E2E_LOGIN_CODE_PHONE`、`INFINITECHAT_E2E_LOGIN_CODE`                                            |
+| 更新头像   | `INFINITECHAT_E2E_AVATAR_URL`                                                                                 |
+| 搜索用户   | `INFINITECHAT_E2E_USER_ID`、`INFINITECHAT_E2E_SEARCH_PHONE`                                                   |
+| 申请好友   | `INFINITECHAT_E2E_FRIEND_USER_ID`                                                                             |
+| 创建群聊   | `INFINITECHAT_E2E_GROUP_MEMBER_IDS`，逗号分隔                                                                 |
+| 查询群成员 | 创建群聊成功，或提供 `INFINITECHAT_E2E_GROUP_SESSION_ID`                                                      |
+| 发送消息   | `INFINITECHAT_E2E_SESSION_ID`，可选 `INFINITECHAT_E2E_RECEIVER_USER_ID`、`INFINITECHAT_E2E_SESSION_TYPE`      |
+| 发送红包   | `INFINITECHAT_E2E_SESSION_ID`、`INFINITECHAT_E2E_RED_PACKET_AMOUNT`，可选 `INFINITECHAT_E2E_RED_PACKET_COUNT` |
+| 拉离线消息 | `INFINITECHAT_E2E_OFFLINE_TIME`，格式 `YYYY-MM-DD HH:mm:ss`                                                   |
+| 发布朋友圈 | `INFINITECHAT_E2E_MOMENT_TEXT`，可选 `INFINITECHAT_E2E_MOMENT_MEDIA_URLS`                                     |
 
 ## Realtime And Kafka Smoke
 
@@ -102,12 +105,31 @@ INFINITECHAT_PERF_CONCURRENCY=4
 
 红包压测会真实创建红包并扣减测试账号余额。只允许在可重置测试环境使用。
 
+## Full Quality Probe
+
+命令：
+
+```bash
+INFINITECHAT_E2E=1 pnpm quality:legacy:full
+```
+
+该入口会按顺序执行 HTTP smoke、WebSocket/Kafka smoke 和 performance probe。它不会跳过关键场景，缺少任何完整验收需要的环境变量都会失败。
+
+full 探针要求 `INFINITECHAT_PERF_SCENARIOS` 至少包含：
+
+```bash
+INFINITECHAT_PERF_SCENARIOS=message,offline,redPacket
+```
+
+full 探针用于可重置测试环境，不要对生产环境运行。
+
 ## 阶段 9 状态
 
 已具备：
 
 - 本地 Jest 守卫测试：路由表、WebSocket path、Kafka dead-letter、日志脱敏和安全审计。
 - 显式启用的真实环境 smoke 和压测入口。
+- 严格 full 探针：缺少注册、登录、好友、群聊、消息、红包、朋友圈、WebSocket、Kafka 或压测变量时直接失败。
 - PostgreSQL schema 已补齐当前兼容模块热路径所需的索引和唯一约束。
 
 仍需真实环境执行：

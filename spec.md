@@ -765,6 +765,7 @@ flowchart LR
 
 - 本地守卫测试覆盖旧 API 路由、controller 装饰器、WebSocket 兼容 path、Kafka dead-letter、日志脱敏和旧配置安全审计。
 - `docs/quality.md` 提供显式开启的真实环境 smoke 和压测入口。真实数据库、Redis、Kafka 和 WebSocket 联调仍需要可重置测试环境。
+- `pnpm quality:legacy:full` 提供严格完整验收入口，串行执行 HTTP smoke、WebSocket/Kafka smoke 和 performance probe。缺少注册、登录、好友、群聊、消息、红包、朋友圈、WebSocket、Kafka 或压测所需环境变量时直接失败。
 - `docs/security-audit.md` 记录旧配置凭据轮换要求和日志脱敏字段族，不复述任何旧明文值。
 - Kafka outbox 达到最大重试后投递 `im.dead-letter`，死信 payload 只保留排障所需标识和错误摘要。
 - PostgreSQL schema 已补齐面向当前 repository 查询路径的索引和约束：手机号解析、验证码最新有效码、好友申请分页和接受、群成员列表、message outbox 重试扫描、红包领取详情、朋友圈增量同步。

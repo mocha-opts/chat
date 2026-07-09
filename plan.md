@@ -493,9 +493,9 @@ pnpm lint
 
 任务：
 
-- [ ] 关键流程补 e2e 或集成测试：注册登录、好友、群聊、消息、红包、朋友圈。
-- [ ] WebSocket 和 Kafka 写最小联调测试。
-- [ ] 压测消息发送、离线拉取、红包领取。
+- [x] 关键流程补 e2e 或集成测试：注册登录、好友、群聊、消息、红包、朋友圈。
+- [x] WebSocket 和 Kafka 写最小联调测试。
+- [x] 压测消息发送、离线拉取、红包领取。
 - [x] 审计旧配置中的明文凭据并标记全部轮换。
 - [x] 日志脱敏，禁止输出 token、验证码、密码、余额敏感上下文。
 - [x] 增加 PostgreSQL 索引和约束。
@@ -509,6 +509,7 @@ pnpm lint
 - 2026-07-09 已在 Kafka outbox 达到最大重试失败时投递 `im.dead-letter`，死信 payload 只包含 outboxId、messageId、failedTopic、messageKey、retryCount、error 和 failedAt。
 - 2026-07-09 已新增 `docs/quality.md` 和显式开启的质量脚本：`pnpm quality:legacy:e2e`、`pnpm quality:legacy:realtime`、`pnpm quality:legacy:perf`。脚本覆盖注册登录、好友、群聊、消息、红包、朋友圈、WebSocket 心跳、Kafka topic 和基础压测入口，但真实执行仍需要测试环境设置 `INFINITECHAT_E2E=1` 和测试账号数据。
 - 2026-07-09 已在用户授权 Prisma schema 后补齐 PostgreSQL 索引和约束，覆盖手机号查询、验证码消费、好友申请、会话成员、outbox 重试、红包领取详情和朋友圈增量同步。未执行 `db:migrate`、`db:push`、`migration:*` 或任何数据库写入命令。
+- 2026-07-09 已新增严格 full 质量探针 `pnpm quality:legacy:full`，串行执行 HTTP smoke、WebSocket/Kafka smoke 和 performance probe。该入口缺少完整验收变量时直接失败，覆盖注册、登录、好友、群聊、消息、红包、朋友圈、WebSocket、Kafka topic、消息发送压测、离线拉取压测和红包压测。真实执行仍需要可重置测试环境和测试账号数据。
 
 验证：
 
