@@ -358,15 +358,17 @@ pnpm lint
 
 任务：
 
-- [ ] 新建 `realtime` 模块。
-- [ ] 实现 WebSocket Gateway，path 兼容 `/api/v1/netty`。
-- [ ] 握手阶段解析 JWT，校验 token subject 与用户 ID。
-- [ ] Redis 保存在线路由和 TTL。
-- [ ] 心跳消息刷新 TTL 并回包。
-- [ ] 登出消息清理连接和待 ACK。
-- [ ] 推送 service 支持消息通知、朋友圈通知、好友申请通知、新会话通知。
-- [ ] 待 ACK 消息保存在进程内或 Redis 中，第一版可以进程内，后续根据多实例需求升级 Redis。
-- [ ] ACK 超时重试，超过阈值后停止实时重试，但消息仍在 PostgreSQL 中可离线拉取。
+- [x] 新建 `realtime` 模块。
+- [x] 实现 WebSocket Gateway，path 兼容 `/api/v1/netty`。
+- [x] 握手阶段解析 JWT，校验 token subject 与用户 ID。
+- [x] Redis 保存在线路由和 TTL。
+- [x] 心跳消息刷新 TTL 并回包。
+- [x] 登出消息清理连接和待 ACK。
+- [x] 推送 service 支持消息通知、朋友圈通知、好友申请通知、新会话通知。
+- [x] 待 ACK 消息保存在进程内或 Redis 中，第一版可以进程内，后续根据多实例需求升级 Redis。
+- [x] ACK 超时重试，超过阈值后停止实时重试，但消息仍在 PostgreSQL 中可离线拉取。
+
+备注：阶段 4 已完成实时通信基础能力，使用 Nest WebSocket Gateway 和 `@nestjs/platform-ws` 挂载旧 `/api/v1/netty` path。握手兼容旧 `userUuid` 和 `token` header，也支持 query 参数；`userUuid` 会解析为 ACK `User.id` 后再和 JWT subject 比对。好友申请、新会话、新群会话的业务调用接入仍保持阶段 3 未完成项，等待后续把 contact、conversation、messaging 与 `RealtimeService` 或 Kafka realtime 事件连接。
 
 验证：
 

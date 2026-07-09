@@ -23,6 +23,7 @@ import { FirebaseModule } from '@common/firebase/firebase.module';
 import { ActivityLogModule } from '@modules/activity-log/activity-log.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { KafkaModule } from '@common/kafka/kafka.module';
+import { RealtimeModule } from '@modules/realtime/realtime.module';
 
 /**
  * Root shared module that composes all global infrastructure and feature modules.
@@ -70,6 +71,7 @@ import { KafkaModule } from '@common/kafka/kafka.module';
         TermPolicyModule,
         SessionModule,
         NotificationModule,
+        RealtimeModule,
     ],
 })
 export class CommonModule {}

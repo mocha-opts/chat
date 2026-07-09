@@ -435,6 +435,9 @@ flowchart LR
 - 客户端收到需要确认的推送后，以 ACK 类型回传同一个 `msgUuid`。
 - 心跳回包使用 type `5`。
 - 登出后服务端关闭连接并清理 route。
+- 旧握手 header `userUuid` 和 `token` 必须继续兼容。`userUuid` 可以是 ACK UUID、旧 `legacyId` 或手机号，服务端先解析为 ACK `User.id`，再和 JWT subject 比对。
+- 在线路由写入 Redis key `user:session:<userId>`，TTL 15 分钟。心跳只刷新 TTL 和 `lastSeenAt`，不能改写权威用户状态。
+- 第一版待 ACK 状态保存在当前进程内。多实例生产部署前，需要升级为 Redis pending ACK 或基于 Kafka/outbox 的跨节点重试。
 
 ## 7. Kafka 事件规范
 
@@ -674,4 +677,22 @@ flowchart LR
 - 群聊创建、邀请、踢人、退群和设置管理员都写 `conversation_members`，角色使用 `owner`、`admin`、`member`。
 - 旧 Java 数字响应语义在兼容层映射：好友 `normal=1`、`blocked=2`、`deleted=3`、非好友 `0`；好友申请 `unread=0`、`accepted=1`、`rejected=2`、`read=3`、`expired=4`；会话 `single=1`、`group=2`。
 - 阶段 3 不恢复旧 Java 对实时服务的内部 HTTP 调用。好友申请、新会话、新群会话通知等待阶段 4 `realtime` 模块以同进程 service 或 Kafka 事件接入。
+- 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
+
+### 12.6 阶段 4 实现基线
+
+2026-07-09 阶段 4 已新增 `realtime` 模块，并在同一个 Nest 应用中启用 WebSocket adapter。目标仍是单体后端，不创建独立实时服务部署单元。
+
+实现约束：
+
+- WebSocket path 使用旧兼容路径 `/api/v1/netty`。
+- Gateway 只负责连接生命周期和原始帧入口，连接鉴权、在线路由、ACK、重试和推送由 `RealtimeService` 编排。
+- 握手支持旧 header `token`、`userUuid`，也支持 query 参数 `token`、`userUuid`、`userId`。`token` 可以是裸 token 或 ACK `Bearer` token。
+- 握手先校验 ACK access token 签名，再校验 session cache 中的 `jti`，最后校验请求用户标识解析后的 ACK `User.id` 必须等于 token subject。
+- 用户标识兼容 ACK UUID、旧 `legacyId` 和手机号。解析逻辑在 `RealtimeRepository` 中完成，service 不直接访问 `DatabaseService`。
+- 在线路由写入共享 Redis cache，key 为 `user:session:<userId>`，TTL 为 15 分钟。新连接会替换同一用户旧连接。
+- 客户端 `ACK=1` 会删除同一 `msgUuid` 的待确认记录。`LOG_OUT=2` 会删除连接、在线路由和该用户待 ACK。`HEART_BEAT=5` 会刷新在线路由并回包 type `5`。
+- `RealtimeService` 暴露 message、moment、friend application、conversation 四类推送方法，服务端推送 envelope 保持 `{ type, msgUuid, data }`。
+- 待 ACK 第一版保存在进程内，超时 5 秒重试，最多 3 次。超过后只停止实时重试，不删除 PostgreSQL 中已经持久化或待持久化的消息。
+- 阶段 4 只完成 realtime 基础能力。好友申请、新会话、新群会话和消息发送的业务调用接入仍由阶段 5 或后续阶段完成。
 - 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。

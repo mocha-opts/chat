@@ -62,9 +62,11 @@
         "@nestjs/microservices": "^11.1.27",
         "@nestjs/passport": "^11.0.5",
         "@nestjs/platform-express": "^11.1.24",
+        "@nestjs/platform-ws": "^11.1.28",
         "@nestjs/swagger": "^11.4.4",
         "@nestjs/terminus": "^11.1.1",
         "@nestjs/throttler": "^6.5.0",
+        "@nestjs/websockets": "^11.1.28",
         "@prisma/client": "^6.19.0",
         "@sentry/nestjs": "^10.56.0",
         "@sentry/profiling-node": "^10.56.0",
@@ -115,6 +117,7 @@
         "ua-parser-js": "^2.0.10",
         "uuid": "^14.0.0",
         "verify-apple-id-token": "^3.1.2",
+        "ws": "^8.21.0",
         "yargs": "^18.0.0"
     },
     "devDependencies": {
@@ -146,6 +149,7 @@
         "@types/passport-jwt": "^4.0.1",
         "@types/response-time": "^2.3.9",
         "@types/supertest": "^7.2.0",
+        "@types/ws": "^8.18.1",
         "@typescript-eslint/eslint-plugin": "^8.60.1",
         "@typescript-eslint/parser": "^8.60.1",
         "concurrently": "^10.0.3",

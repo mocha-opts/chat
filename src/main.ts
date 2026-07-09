@@ -10,6 +10,7 @@ import { plainToInstance } from 'class-transformer';
 import { AppEnvDto } from '@app/dtos/app.env.dto';
 import { MessageService } from '@common/message/services/message.service';
 import { Logger as PinoLogger } from 'nestjs-pino';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap(): Promise<void> {
     let app: NestApplication = await NestFactory.create(AppModule, {
@@ -48,6 +49,7 @@ async function bootstrap(): Promise<void> {
     app = app.enableShutdownHooks();
 
     app.setGlobalPrefix(globalPrefix);
+    app.useWebSocketAdapter(new WsAdapter(app));
     useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
     if (versionEnable) {
