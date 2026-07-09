@@ -11,6 +11,7 @@ import { AppEnvDto } from '@app/dtos/app.env.dto';
 import { MessageService } from '@common/message/services/message.service';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { WsAdapter } from '@nestjs/platform-ws';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap(): Promise<void> {
     let app: NestApplication = await NestFactory.create(AppModule, {
@@ -38,6 +39,9 @@ async function bootstrap(): Promise<void> {
     const loggerAuto = configService.get<boolean>('logger.auto')!;
     const loggerDebugEnable = configService.get<boolean>('logger.enable')!;
     const loggerDebugLevel = configService.get<string>('logger.level')!;
+    const kafkaBrokers = configService.get<string[]>('kafka.brokers')!;
+    const kafkaClientId = configService.get<string>('kafka.clientId')!;
+    const kafkaGroupId = configService.get<string>('kafka.groupId')!;
 
     const versionEnable: boolean = configService.get<boolean>(
         'app.urlVersion.enable'
@@ -59,6 +63,19 @@ async function bootstrap(): Promise<void> {
             prefix: versioningPrefix,
         });
     }
+
+    app.connectMicroservice<MicroserviceOptions>({
+        transport: Transport.KAFKA,
+        options: {
+            client: {
+                clientId: kafkaClientId,
+                brokers: kafkaBrokers,
+            },
+            consumer: {
+                groupId: kafkaGroupId,
+            },
+        },
+    });
 
     const logger = new Logger(`${appName}-Main`);
     const classEnv = plainToInstance(AppEnvDto, process.env);
@@ -84,6 +101,7 @@ async function bootstrap(): Promise<void> {
 
     await swaggerInit(app);
 
+    await app.startAllMicroservices();
     await app.listen(port, host);
 
     logger.log('=='.repeat(20), 'NestApplication');

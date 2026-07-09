@@ -1,0 +1,13 @@
+{
+    "sendMessage": "Message sent successfully.",
+    "error": {
+        "userNotFound": "User not found.",
+        "userInactive": "User is not active.",
+        "forbidden": "You cannot send messages as another user.",
+        "conversationNotFound": "Conversation not found.",
+        "memberNotFound": "The sender is not an active member of this conversation.",
+        "friendNotFound": "The sender and receiver are not friends.",
+        "receiverInvalid": "Receiver list is invalid.",
+        "typeInvalid": "Message type or payload is invalid."
+    }
+}

@@ -696,3 +696,22 @@ flowchart LR
 - 待 ACK 第一版保存在进程内，超时 5 秒重试，最多 3 次。超过后只停止实时重试，不删除 PostgreSQL 中已经持久化或待持久化的消息。
 - 阶段 4 只完成 realtime 基础能力。好友申请、新会话、新群会话和消息发送的业务调用接入仍由阶段 5 或后续阶段完成。
 - 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
+
+### 12.7 阶段 5 实现基线
+
+2026-07-09 阶段 5 已新增 `messaging` 和 `offline-message` 模块，并挂载旧 `/api/v1/chat/session` 与 `/api/v1/offline/message` 路径。
+
+实现约束：
+
+- 发送消息接口使用 ACK `@Response`、JWT 和 `UserProtected`。body 中的 `sendUserId` 可以是旧 `legacyId`、ACK UUID 或手机号，但解析后的 ACK `User.id` 必须等于 JWT subject。
+- 旧数字协议继续兼容：会话 `single=1`、`group=2`；消息 `text=1`、`picture=2`、`file=3`、`video=4`、`redPacket=5`、`emoticon=6`。内部统一映射为 Prisma enum。
+- 单聊发送必须校验发送者和接收者都是 active，双方是 normal 好友，并且两人都是该单聊会话成员。
+- 群聊发送必须校验发送者仍是 normal 成员，接收者为同会话内除发送者外的 normal 成员。
+- `messageId` 在 Nest 侧生成 BigInt，对外响应为 string，避免 JavaScript 精度问题。
+- 发送 API 在同一 Prisma interactive transaction 中写入 `messages` 和 `message_outboxes`。API 不依赖 Kafka 成功才返回消息结果。
+- Outbox topic 使用 `im.message.persist`，payload 使用统一 Kafka envelope。发布前标记 `pending` 并增加 `retryCount`，成功标记 `sent`，失败标记 `failed` 并写 `nextRetryAt` 和 `lastError`。
+- `MessagingOutboxProcessor` 在同进程内定时扫描 `init`、`failed` 和过期 `pending` outbox，最多重试 10 次。生产多实例时需要评估并发抢占策略。
+- 同一个 Nest 应用通过 hybrid Kafka transport 消费 `im.message.persist`。consumer 按 `messageId` 幂等落库，重复消费不会重复插入。
+- 实时推送直接调用阶段 4 `RealtimeService.pushMessage`。旧 Java 推送字段 `seesionName` 和 `sessionAvatr` 保留，用于兼容旧客户端拼写。
+- 离线消息接口按当前用户 normal 会话成员关系聚合 `messages`，按 `time` 过滤，返回发送人信息、旧数字消息类型、消息 body、红包封面文案字段和会话信息。
+- 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。

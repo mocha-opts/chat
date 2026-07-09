@@ -384,16 +384,18 @@ pnpm lint
 
 任务：
 
-- [ ] 新建 `messaging` 模块。
-- [ ] 实现发送消息 API：`POST /api/v1/chat/session`。
-- [ ] 单聊校验好友关系，群聊校验成员关系。
-- [ ] 生成 `messageId`，构造消息 body。
-- [ ] 在事务中写入 `messages` 或写入 `message_outboxes`，根据最终 outbox 设计保证消息不会丢。
-- [ ] outbox 投递 Kafka，失败记录 `retryCount`、`nextRetryAt`、`lastError`。
-- [ ] 定时或任务扫描未投递 outbox。
-- [ ] Kafka consumer 处理 `im.message.persist`，幂等落库。
-- [ ] `offline-message` 模块实现 `GET /api/v1/offline/message`。
-- [ ] 离线查询按用户会话聚合，包含发送人信息、红包消息扩展字段、时间过滤。
+- [x] 新建 `messaging` 模块。
+- [x] 实现发送消息 API：`POST /api/v1/chat/session`。
+- [x] 单聊校验好友关系，群聊校验成员关系。
+- [x] 生成 `messageId`，构造消息 body。
+- [x] 在事务中写入 `messages` 或写入 `message_outboxes`，根据最终 outbox 设计保证消息不会丢。
+- [x] outbox 投递 Kafka，失败记录 `retryCount`、`nextRetryAt`、`lastError`。
+- [x] 定时或任务扫描未投递 outbox。
+- [x] Kafka consumer 处理 `im.message.persist`，幂等落库。
+- [x] `offline-message` 模块实现 `GET /api/v1/offline/message`。
+- [x] 离线查询按用户会话聚合，包含发送人信息、红包消息扩展字段、时间过滤。
+
+备注：阶段 5 已完成消息投递和离线查询的第一版闭环。发送 API 会在 PostgreSQL 事务中写入 `messages` 和 `message_outboxes`，再由 outbox 发布 Kafka；失败会保留状态并由进程内 processor 定时重试。Kafka consumer 以 `messageId` 幂等处理 `im.message.persist`。实时推送直接复用阶段 4 `RealtimeService`，离线查询直接读取 PostgreSQL 权威消息数据。
 
 验证：
 
