@@ -467,11 +467,19 @@ pnpm lint
 
 任务：
 
-- [ ] 在 `src/router` 或 controller path 中保留旧 Java API 路径。
-- [ ] 为新模块补充 Swagger doc。
-- [ ] 统一响应格式到 ACK 的 `@Response` 体系，同时兼容旧 `Result` 的语义。
-- [ ] 梳理错误码和 i18n message key。
-- [ ] 更新 `.env.example`、`docs/*`、README 中与 MongoDB、Nacos、Feign、Gateway 冲突的内容。
+- [x] 在 `src/router` 或 controller path 中保留旧 Java API 路径。
+- [x] 为新模块补充 Swagger doc。
+- [x] 统一响应格式到 ACK 的 `@Response` 体系，同时兼容旧 `Result` 的语义。
+- [x] 梳理错误码和 i18n message key。
+- [x] 更新 `.env.example`、`docs/*`、README 中与 MongoDB、Nacos、Feign、Gateway 冲突的内容。
+
+实现记录：
+
+- 2026-07-09 已新增 `docs/legacy-api.md`，集中记录旧 Java API 路由表、ACK response 映射、JWT 鉴权和 Kafka/PostgreSQL 约束。
+- 已为用户、验证码、上传、联系人、群聊、消息、离线消息、红包、朋友圈兼容 controller 补充 Swagger doc 装饰器。
+- 已确认 `.env.example` 使用 PostgreSQL、Kafka 和 Redis，没有 MongoDB、Nacos、Feign、Gateway 目标配置。
+- README 已补充 InfiniteChat 迁移约束：单体应用、PostgreSQL 目标数据库、Kafka 负责 IM 事件、BullMQ 只处理非 IM 后台任务。
+- `docs/readme.md` 和 `AGENTS.md` 的 docs 索引已加入 `legacy-api`。
 
 验证：
 

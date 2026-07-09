@@ -17,6 +17,14 @@ import {
     ConversationKickGroupResponseDto,
     ConversationSetAdminResponseDto,
 } from '@modules/conversation/dtos/response/conversation.legacy.response.dto';
+import {
+    ConversationLegacyCreateGroupDoc,
+    ConversationLegacyExitGroupDoc,
+    ConversationLegacyGroupMembersDoc,
+    ConversationLegacyInviteGroupDoc,
+    ConversationLegacyKickGroupDoc,
+    ConversationLegacySetAdminDoc,
+} from '@modules/conversation/docs/conversation.legacy.doc';
 import { ConversationService } from '@modules/conversation/services/conversation.service';
 import { UserProtected } from '@modules/user/decorators/user.decorator';
 import {
@@ -38,6 +46,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class ConversationLegacyController {
     constructor(private readonly conversationService: ConversationService) {}
 
+    @ConversationLegacyCreateGroupDoc()
     @Response('conversation.createGroup')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -50,6 +59,7 @@ export class ConversationLegacyController {
         return this.conversationService.createGroup(authUserId, body);
     }
 
+    @ConversationLegacyInviteGroupDoc()
     @Response('conversation.inviteGroup')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -62,6 +72,7 @@ export class ConversationLegacyController {
         return this.conversationService.inviteGroup(authUserId, body);
     }
 
+    @ConversationLegacyKickGroupDoc()
     @Response('conversation.kickGroup')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -74,6 +85,7 @@ export class ConversationLegacyController {
         return this.conversationService.kickGroupMembers(authUserId, body);
     }
 
+    @ConversationLegacyExitGroupDoc()
     @Response('conversation.exitGroup')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -86,6 +98,7 @@ export class ConversationLegacyController {
         return this.conversationService.exitGroup(authUserId, body);
     }
 
+    @ConversationLegacyGroupMembersDoc()
     @Response('conversation.groupMembers')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -101,6 +114,7 @@ export class ConversationLegacyController {
         );
     }
 
+    @ConversationLegacySetAdminDoc()
     @Response('conversation.setAdmin')
     @UserProtected()
     @AuthJwtAccessProtected()

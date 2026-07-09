@@ -10,6 +10,11 @@ import { RedPacketSendRequestDto } from '@modules/red-packet/dtos/request/red-pa
 import { RedPacketDetailResponseDto } from '@modules/red-packet/dtos/response/red-packet.detail.response.dto';
 import { RedPacketReceiveResponseDto } from '@modules/red-packet/dtos/response/red-packet.receive.response.dto';
 import { RedPacketSendResponseDto } from '@modules/red-packet/dtos/response/red-packet.send.response.dto';
+import {
+    RedPacketLegacyDetailDoc,
+    RedPacketLegacyReceiveDoc,
+    RedPacketLegacySendDoc,
+} from '@modules/red-packet/docs/red-packet.legacy.doc';
 import { RedPacketService } from '@modules/red-packet/services/red-packet.service';
 import { UserProtected } from '@modules/user/decorators/user.decorator';
 import {
@@ -32,6 +37,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class RedPacketLegacyController {
     constructor(private readonly redPacketService: RedPacketService) {}
 
+    @RedPacketLegacySendDoc()
     @Response('redPacket.send')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -44,6 +50,7 @@ export class RedPacketLegacyController {
         return this.redPacketService.sendRedPacket(authUserId, body);
     }
 
+    @RedPacketLegacyReceiveDoc()
     @Response('redPacket.receive')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -56,6 +63,7 @@ export class RedPacketLegacyController {
         return this.redPacketService.receiveRedPacket(authUserId, body);
     }
 
+    @RedPacketLegacyDetailDoc()
     @Response('redPacket.detail')
     @UserProtected()
     @AuthJwtAccessProtected()

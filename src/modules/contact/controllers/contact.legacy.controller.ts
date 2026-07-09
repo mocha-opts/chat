@@ -15,6 +15,16 @@ import {
     ContactMessageResponseDto,
     ContactUserResponseDto,
 } from '@modules/contact/dtos/response/contact.legacy.response.dto';
+import {
+    ContactLegacyAddFriendDoc,
+    ContactLegacyApplyCountDoc,
+    ContactLegacyApplyListDoc,
+    ContactLegacyBlockFriendDoc,
+    ContactLegacyDeleteFriendDoc,
+    ContactLegacyFriendDetailDoc,
+    ContactLegacyModifyApplicationDoc,
+    ContactLegacySearchUserDoc,
+} from '@modules/contact/docs/contact.legacy.doc';
 import { ContactService } from '@modules/contact/services/contact.service';
 import { UserProtected } from '@modules/user/decorators/user.decorator';
 import {
@@ -38,6 +48,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class ContactLegacyController {
     constructor(private readonly contactService: ContactService) {}
 
+    @ContactLegacySearchUserDoc()
     @Response('contact.searchUser')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -55,6 +66,7 @@ export class ContactLegacyController {
         );
     }
 
+    @ContactLegacyAddFriendDoc()
     @Response('contact.addFriend')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -74,6 +86,7 @@ export class ContactLegacyController {
         );
     }
 
+    @ContactLegacyFriendDetailDoc()
     @Response('contact.friendDetail')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -91,6 +104,7 @@ export class ContactLegacyController {
         );
     }
 
+    @ContactLegacyApplyCountDoc()
     @Response('contact.applyCount')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -103,6 +117,7 @@ export class ContactLegacyController {
         return this.contactService.getUnreadApplyCount(authUserId, userUuid);
     }
 
+    @ContactLegacyApplyListDoc()
     @Response('contact.applyList')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -116,6 +131,7 @@ export class ContactLegacyController {
         return this.contactService.getApplyList(authUserId, userUuid, query);
     }
 
+    @ContactLegacyModifyApplicationDoc()
     @Response('contact.modifyApplication')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -135,6 +151,7 @@ export class ContactLegacyController {
         );
     }
 
+    @ContactLegacyDeleteFriendDoc()
     @Response('contact.deleteFriend')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -152,6 +169,7 @@ export class ContactLegacyController {
         );
     }
 
+    @ContactLegacyBlockFriendDoc()
     @Response('contact.blockFriend')
     @UserProtected()
     @AuthJwtAccessProtected()

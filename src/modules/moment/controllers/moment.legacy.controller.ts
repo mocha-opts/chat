@@ -17,6 +17,15 @@ import {
     MomentListResponseDto,
     MomentMessageResponseDto,
 } from '@modules/moment/dtos/response/moment.legacy.response.dto';
+import {
+    MomentLegacyCreateCommentDoc,
+    MomentLegacyCreateDoc,
+    MomentLegacyDeleteCommentDoc,
+    MomentLegacyDeleteDoc,
+    MomentLegacyDeleteLikeDoc,
+    MomentLegacyLikeDoc,
+    MomentLegacyListDoc,
+} from '@modules/moment/docs/moment.legacy.doc';
 import { MomentService } from '@modules/moment/services/moment.service';
 import { UserProtected } from '@modules/user/decorators/user.decorator';
 import {
@@ -40,6 +49,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class MomentLegacyController {
     constructor(private readonly momentService: MomentService) {}
 
+    @MomentLegacyCreateDoc()
     @Response('moment.createMoment')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -52,6 +62,7 @@ export class MomentLegacyController {
         return this.momentService.createMoment(authUserId, body);
     }
 
+    @MomentLegacyDeleteDoc()
     @Response('moment.deleteMoment')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -65,6 +76,7 @@ export class MomentLegacyController {
         return this.momentService.deleteMoment(authUserId, momentId, query);
     }
 
+    @MomentLegacyLikeDoc()
     @Response('moment.likeMoment')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -78,6 +90,7 @@ export class MomentLegacyController {
         return this.momentService.likeMoment(authUserId, momentId, body);
     }
 
+    @MomentLegacyDeleteLikeDoc()
     @Response('moment.deleteLike')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -95,6 +108,7 @@ export class MomentLegacyController {
         );
     }
 
+    @MomentLegacyCreateCommentDoc()
     @Response('moment.createComment')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -108,6 +122,7 @@ export class MomentLegacyController {
         return this.momentService.createComment(authUserId, momentId, body);
     }
 
+    @MomentLegacyDeleteCommentDoc()
     @Response('moment.deleteComment')
     @UserProtected()
     @AuthJwtAccessProtected()
@@ -121,6 +136,7 @@ export class MomentLegacyController {
         return this.momentService.deleteComment(authUserId, momentId, query);
     }
 
+    @MomentLegacyListDoc()
     @Response('moment.list')
     @UserProtected()
     @AuthJwtAccessProtected()

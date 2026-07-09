@@ -744,3 +744,15 @@ flowchart LR
 - 旧 Java Long 业务 ID 在兼容响应中统一输出为 string，内部继续使用 PostgreSQL `BigInt`。
 - 发布朋友圈调用 `RealtimeService.pushMoment` 推送给好友。点赞和评论他人动态时推送给动态作者，自己操作自己的动态不发送通知。
 - 阶段 7 不新增微服务，不新增 unit test，不编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
+
+### 12.10 阶段 8 实现基线
+
+2026-07-09 阶段 8 已完成兼容路由和文档收口，目标是让旧前端或未来前端能从 Swagger 和项目文档获取稳定对接面。
+
+- 旧 Java HTTP 路径继续通过 `src/router/routes/*` 挂载。用户、验证码和上传位于 `/api/v1/user/**`，联系人和群聊位于 `/api/v1/contact/**`，消息和红包位于 `/api/v1/chat/**`，离线消息位于 `/api/v1/offline/**`，朋友圈位于 `/api/v1/moment/**`。
+- 新增 `docs/legacy-api.md` 作为旧 API 兼容路由表，明确 ACK response envelope 对旧 Java `Result` 语义的映射。
+- 用户、验证码、上传、联系人、群聊、消息、离线消息、红包、朋友圈兼容 controller 均补充 ACK Swagger doc 装饰器，覆盖请求 body、path param、query param、JWT 鉴权和响应 DTO。
+- 旧路径继续使用 ACK `@Response` 体系。兼容 DTO 保留旧客户端需要的 data 字段，错误继续通过 `AppBaseException`、模块 status-code enum 和 `src/languages/en/*.json` 的 i18n key 输出。
+- `.env.example` 已确认只包含 PostgreSQL、Kafka、Redis 和对象存储等目标配置，没有 MongoDB、Nacos、Feign 或 Gateway 目标配置。
+- README 已明确本项目是模块化单体，PostgreSQL 是必选目标数据库，Kafka 是 IM 事件基础设施，BullMQ 只承担非 IM 后台任务。
+- 本阶段不新增业务功能，不新增 unit test，不编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。

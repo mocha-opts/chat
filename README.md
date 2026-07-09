@@ -15,7 +15,7 @@
 
 # ACK NestJs Boilerplate 🔥 🚀
 
-[ACK NestJs][ref-ack] is a [NestJs v11.x][ref-nestjs] boilerplate with JWT, OAuth (Google & Apple), OTP, TOTP/2FA, and RBAC. Powered by Prisma, works with any database. Repository Design Pattern and Modular. Production-ready.
+[ACK NestJs][ref-ack] is a [NestJs v11.x][ref-nestjs] boilerplate with JWT, OAuth (Google & Apple), OTP, TOTP/2FA, and RBAC. This InfiniteChat migration keeps the ACK foundation, targets PostgreSQL as the required database, and uses Kafka for IM message events. Repository Design Pattern and Modular. Production-ready.
 
 _You can [request feature][ref-ack-issues] or [report bug][ref-ack-issues] with following this link_
 
@@ -53,7 +53,7 @@ This boilerplate is perfect for:
         - [🔔 Notifications](#-notifications)
         - [📝 Testing \& Documentation](#-testing--documentation)
     - [Quick Start](#quick-start)
-    - [Change DB with Minimal Effort](#change-db-with-minimal-effort)
+    - [Database Target](#database-target)
         - [Supported Databases](#supported-databases)
     - [Installation](#installation)
     - [License](#license)
@@ -65,6 +65,8 @@ This boilerplate is perfect for:
 
 - Stateful Authorization, using `redis-session` and `JWT`.
 - PostgreSQL is the primary application database and is required for local development.
+- InfiniteChat runs as a modular monolith. Do not split the Java source domains into deployable microservices.
+- Kafka is the IM event broker for message persistence, offline delivery, and realtime notifications. BullMQ remains for non-IM background jobs.
 - If you change the environment value of `APP_ENV` to `production`, it will disable Documentation.
 - When using multiple protection decorators, they must be applied in the correct order:
     ```typescript
@@ -132,9 +134,9 @@ I assume that everyone who comes here is a **`programmer with intermediate knowl
 5. **[Redis][ref-redis]** - Caching strategies, session storage, and queue management
 6. **Repository Design Pattern** - Data access layer abstraction for maintainable code
 7. **SOLID Principles** - Clean code architecture and dependency management
-8. **Queue Systems** - Background job processing with [BullMQ][ref-bullmq]
+8. **Queue Systems** - Background job processing with [BullMQ][ref-bullmq]; IM events use Kafka
 9. **Optional. [Docker][ref-docker]** - Containerization for running the project
-10. **Optional. Microservice Architecture** - Understanding distributed systems concepts
+10. **Modular Monolith Architecture** - Understanding module boundaries inside one deployable NestJS app
 
 ## Build with
 
@@ -147,6 +149,7 @@ The project is built using the following technologies and versions. We always st
 | TypeScript     | v6.0.x   |
 | Prisma         | v6.19.x  |
 | PostgreSQL     | v16.x    |
+| Kafka          | v3.9.x   |
 | Redis          | v8.0.x   |
 | Docker         | v28.5.x  |
 | Docker Compose | v2.40.x  |
@@ -192,6 +195,7 @@ Modern ORM with PostgreSQL database and file storage capabilities.
 
 - **Prisma ORM** - Type-safe database toolkit with migrations
 - **PostgreSQL** - Relational database with transaction support
+- **Kafka** - IM event broker for message delivery, offline persistence, and realtime notifications
 - **Redis Caching** - Multi-level caching strategies for performance
 - **AWS S3 Integration** - File storage with presigned URLs
 - **Repository Pattern** - Clean separation of data access layer
@@ -200,7 +204,8 @@ Modern ORM with PostgreSQL database and file storage capabilities.
 
 Built for speed and scalability from day one.
 
-- **Background Jobs** - BullMQ queue system for async processing
+- **Background Jobs** - BullMQ queue system for non-IM async processing
+- **IM Event Flow** - Kafka-backed message persistence, offline delivery, and realtime notification events
 - **Response Compression** - Automatic gzip/deflate compression
 - **SWC Compiler** - 20x faster than TypeScript compiler
 - **Pagination** - Server-side pagination with cursor support
@@ -238,7 +243,7 @@ Multi-channel notification system for user engagement.
 - **User Preferences** - Per-type and per-channel opt-in/out settings
 - **AWS SES Email Templates** - Handlebars-based email templates synced to SES
 - **Firebase FCM Push** - Push notifications with multicast support and token cleanup
-- **Queue-Based Processing** - Reliable async delivery with BullMQ
+- **Queue-Based Processing** - Reliable notification background delivery with BullMQ
 
 📖 See [Notification Documentation][ref-doc-notification] for detailed setup and usage.
 
@@ -270,9 +275,9 @@ docker-compose up -d
 open http://localhost:3000/docs
 ```
 
-## Change DB with Minimal Effort
+## Database Target
 
-Thanks to **Repository Pattern** and **Prisma ORM**, switching databases requires minimal code changes. The abstraction layer isolates database logic from business logic.
+Thanks to **Repository Pattern** and **Prisma ORM**, database access remains isolated from business logic. For this InfiniteChat migration, PostgreSQL is the required target database.
 
 ### Supported Databases
 
@@ -280,7 +285,7 @@ Thanks to **Repository Pattern** and **Prisma ORM**, switching databases require
 | -------------- | -------------------------------- | ------------------- |
 | **PostgreSQL** | Relational Database, reliability | ✅ Yes              |
 
-**Other supported databases:** MySQL, SQLite, SQL Server, CockroachDB
+The upstream ACK scaffold can be adapted to other Prisma-supported databases, but changing this project away from PostgreSQL is outside the migration scope.
 
 **Migration typically requires:**
 

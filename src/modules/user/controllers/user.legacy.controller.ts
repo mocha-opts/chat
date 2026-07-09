@@ -13,6 +13,12 @@ import {
     UserLegacyAuthResponseDto,
     UserLegacyRegisterResponseDto,
 } from '@modules/user/dtos/response/user.legacy.response.dto';
+import {
+    UserLegacyAvatarDoc,
+    UserLegacyLoginCodeDoc,
+    UserLegacyLoginDoc,
+    UserLegacyRegisterDoc,
+} from '@modules/user/docs/user.legacy.doc';
 import { UserService } from '@modules/user/services/user.service';
 import {
     Body,
@@ -32,6 +38,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class UserLegacyController {
     constructor(private readonly userService: UserService) {}
 
+    @UserLegacyRegisterDoc()
     @Response('user.legacy.register')
     @HttpCode(HttpStatus.OK)
     @Post('/register')
@@ -41,6 +48,7 @@ export class UserLegacyController {
         return this.userService.legacyRegister(body);
     }
 
+    @UserLegacyLoginDoc()
     @Response('user.legacy.login')
     @HttpCode(HttpStatus.OK)
     @Post('/login')
@@ -50,6 +58,7 @@ export class UserLegacyController {
         return this.userService.legacyLogin(body);
     }
 
+    @UserLegacyLoginCodeDoc()
     @Response('user.legacy.loginCode')
     @HttpCode(HttpStatus.OK)
     @Post('/loginCode')
@@ -59,6 +68,7 @@ export class UserLegacyController {
         return this.userService.legacyLoginCode(body);
     }
 
+    @UserLegacyAvatarDoc()
     @Response('user.legacy.avatar')
     @UserProtected()
     @AuthJwtAccessProtected()

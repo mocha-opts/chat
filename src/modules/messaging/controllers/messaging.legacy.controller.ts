@@ -6,6 +6,7 @@ import {
 } from '@modules/auth/decorators/auth.jwt.decorator';
 import { MessagingSendMessageRequestDto } from '@modules/messaging/dtos/request/messaging.send-message.request.dto';
 import { MessagingSendMessageResponseDto } from '@modules/messaging/dtos/response/messaging.send-message.response.dto';
+import { MessagingLegacySendMessageDoc } from '@modules/messaging/docs/messaging.legacy.doc';
 import { MessagingService } from '@modules/messaging/services/messaging.service';
 import { UserProtected } from '@modules/user/decorators/user.decorator';
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class MessagingLegacyController {
     constructor(private readonly messagingService: MessagingService) {}
 
+    @MessagingLegacySendMessageDoc()
     @Response('messaging.sendMessage')
     @UserProtected()
     @AuthJwtAccessProtected()

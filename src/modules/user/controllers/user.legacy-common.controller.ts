@@ -3,6 +3,10 @@ import { IResponseReturn } from '@common/response/interfaces/response.interface'
 import { VerificationCheckRequestDto } from '@modules/verification/dtos/request/verification.check.request.dto';
 import { VerificationSendMailRequestDto } from '@modules/verification/dtos/request/verification.send-mail.request.dto';
 import { VerificationStatusResponseDto } from '@modules/verification/dtos/response/verification.status.response.dto';
+import {
+    UserLegacyCheckVerificationDoc,
+    UserLegacySendMailDoc,
+} from '@modules/user/docs/user.legacy-common.doc';
 import { UserService } from '@modules/user/services/user.service';
 import {
     Body,
@@ -22,6 +26,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class UserLegacyCommonController {
     constructor(private readonly userService: UserService) {}
 
+    @UserLegacySendMailDoc()
     @Response('verification.sendMail')
     @HttpCode(HttpStatus.OK)
     @Post('/sendMail')
@@ -31,6 +36,7 @@ export class UserLegacyCommonController {
         return this.userService.legacySendMail(body);
     }
 
+    @UserLegacyCheckVerificationDoc()
     @Response('verification.check')
     @HttpCode(HttpStatus.OK)
     @Post('/check')

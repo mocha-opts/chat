@@ -6,6 +6,7 @@ import {
 } from '@modules/auth/decorators/auth.jwt.decorator';
 import { OfflineMessageListRequestDto } from '@modules/offline-message/dtos/request/offline-message.list.request.dto';
 import { OfflineMessageListResponseDto } from '@modules/offline-message/dtos/response/offline-message.list.response.dto';
+import { OfflineMessageLegacyListDoc } from '@modules/offline-message/docs/offline-message.legacy.doc';
 import { OfflineMessageService } from '@modules/offline-message/services/offline-message.service';
 import { UserProtected } from '@modules/user/decorators/user.decorator';
 import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { ApiTags } from '@nestjs/swagger';
 export class OfflineMessageLegacyController {
     constructor(private readonly offlineMessageService: OfflineMessageService) {}
 
+    @OfflineMessageLegacyListDoc()
     @Response('offlineMessage.list')
     @UserProtected()
     @AuthJwtAccessProtected()
