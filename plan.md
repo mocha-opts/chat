@@ -496,10 +496,18 @@ pnpm lint
 - [ ] 关键流程补 e2e 或集成测试：注册登录、好友、群聊、消息、红包、朋友圈。
 - [ ] WebSocket 和 Kafka 写最小联调测试。
 - [ ] 压测消息发送、离线拉取、红包领取。
-- [ ] 审计旧配置中的明文凭据并标记全部轮换。
-- [ ] 日志脱敏，禁止输出 token、验证码、密码、余额敏感上下文。
+- [x] 审计旧配置中的明文凭据并标记全部轮换。
+- [x] 日志脱敏，禁止输出 token、验证码、密码、余额敏感上下文。
 - [ ] 增加 PostgreSQL 索引和约束。
-- [ ] 增加 Kafka 消费失败和 dead-letter 监控。
+- [x] 增加 Kafka 消费失败和 dead-letter 监控。
+
+实现记录：
+
+- 2026-07-09 已新增阶段 9 第一批测试守卫：旧 API 路由表和 controller 装饰器一致性、WebSocket 兼容路径、Kafka outbox 最终失败死信投递、日志敏感字段和旧配置安全审计覆盖。它们不替代真实数据库、Redis、Kafka 和 WebSocket 联调。
+- 2026-07-09 已新增 `docs/security-audit.md`，记录旧 Java 配置文件审计范围、全部旧凭据需要轮换、日志脱敏字段族和 Kafka dead-letter payload 规则，不复述任何旧明文值。
+- 2026-07-09 已扩展 ACK logger redaction 字段，覆盖 token、Authorization、验证码、密码和余额敏感上下文。
+- 2026-07-09 已在 Kafka outbox 达到最大重试失败时投递 `im.dead-letter`，死信 payload 只包含 outboxId、messageId、failedTopic、messageKey、retryCount、error 和 failedAt。
+- PostgreSQL 索引和约束需要编辑 `prisma/schema.prisma` 并生成迁移，当前红线禁止未授权编辑 Prisma schema 或运行 migration，因此保留为单独授权阶段。
 
 验证：
 

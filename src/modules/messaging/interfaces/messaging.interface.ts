@@ -1,5 +1,5 @@
-import { IKafkaEventEnvelope } from '@common/kafka/interfaces/kafka.interface';
-import {
+import type { IKafkaEventEnvelope } from '@common/kafka/interfaces/kafka.interface';
+import type {
     EnumConversationType,
     EnumMessageOutboxStatus,
     EnumMessageType,
@@ -70,6 +70,17 @@ export interface IMessagingOutbox {
     payload: Prisma.JsonValue;
     status: EnumMessageOutboxStatus;
     retryCount: number;
+}
+
+export interface IMessagingDeadLetterPayload
+    extends Record<string, unknown> {
+    outboxId: string;
+    messageId: string;
+    failedTopic: string;
+    messageKey: string;
+    retryCount: number;
+    error: string;
+    failedAt: string;
 }
 
 export interface IMessagingCreateMessageResult {

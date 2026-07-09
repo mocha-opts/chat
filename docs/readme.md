@@ -92,6 +92,7 @@ Additional features and integrations for production-grade deployments.
 27. [Analytics][ref-doc-analytics] — Planned analytics design, pending PostgreSQL query rewrite
 28. [Vault][ref-doc-vault] — Optional secret management via HashiCorp Vault
 29. [Legacy API][ref-doc-legacy-api] — Java InfiniteChat compatibility routes and response mapping
+30. [Security Audit][ref-doc-security-audit] — Legacy credential audit, logger redaction, and Kafka dead-letter rules
 
 [ref-doc-installation]: installation.md
 [ref-doc-environment]: environment.md
@@ -122,6 +123,7 @@ Additional features and integrations for production-grade deployments.
 [ref-doc-analytics]: analytics.md
 [ref-doc-vault]: vault.md
 [ref-doc-legacy-api]: legacy-api.md
+[ref-doc-security-audit]: security-audit.md
 [ref-12factor]: https://12factor.net
 [ref-rfc-7518]: https://datatracker.ietf.org/doc/html/rfc7518
 [ref-rfc-7519]: https://datatracker.ietf.org/doc/html/rfc7519

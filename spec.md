@@ -541,6 +541,7 @@ flowchart LR
 - JWT 私钥、公钥、Kafka、PostgreSQL、Redis、邮箱、对象存储凭据全部来自环境变量。
 - 旧 Java 配置里的明文凭据需要轮换，不能复制到新项目。
 - 日志禁止输出密码、验证码、token、完整 Authorization header。
+- 日志禁止输出余额上下文快照、红包拆分明细和验证码 payload。
 - WebSocket 握手必须鉴权。
 - 红包、余额、消息等核心写操作必须校验当前用户权限。
 - 文件上传预签名 URL 必须限制过期时间、文件名、MIME 和大小。
@@ -549,6 +550,7 @@ flowchart LR
 
 - PostgreSQL 事务包住同一业务不变量内的写操作。
 - Kafka outbox 保证消息事件不会因投递失败而丢失。
+- Kafka outbox 达到最大重试失败时必须投递 `im.dead-letter`，死信事件只保存 outboxId、messageId、failedTopic、messageKey、retryCount、error 和 failedAt，不保存原始消息 payload。
 - Redis 只保存可重建或短期状态。
 - 红包领取使用 Redis 原子脚本和 PostgreSQL 条件更新双保险。
 - Kafka consumer 必须幂等。
