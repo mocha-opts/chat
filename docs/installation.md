@@ -116,7 +116,7 @@ pnpm generate:keys --direct-insert
 - Creates private/public key pairs for both access and refresh tokens, saved as PEM files in the `/keys` directory
 - Generates JWKS (JSON Web Key Set) files in `/keys` directory
 - Creates `access-jwks.json` and `refresh-jwks.json` for public key distribution
-- Prints only the output file paths and the generated key IDs (KIDs) — key material is **never** printed to the console, to avoid leaking private keys into terminal history or CI logs
+- Prints only the output file paths and the generated key IDs (KIDs); key material is **never** printed to the console, to avoid leaking private keys into terminal history or CI logs
 - With `--direct-insert` flag: Automatically updates your `.env` file with the generated keys and key IDs
 
 > [!NOTE]
@@ -182,31 +182,43 @@ cp .env.example .env
 #### Docker-Specific Configuration
 
 > [!NOTE]
-> The Docker setup automatically handles service networking and JWKS hosting, making configuration simpler than manual setup.
+> Keep `.env` host-friendly for local commands. The API container receives Docker-internal service names from `docker-compose.yml`.
 
-For Docker installation, ensure these specific values in your `.env` file:
+For Docker installation, keep these values in your `.env` file:
 
 **Database Configuration:**
 
 ```bash
-# PostgreSQL (Docker container)
+# PostgreSQL from the host
 DATABASE_URL=postgresql://ack:ack_password@localhost:5432/ACKNestJs?schema=public
 ```
 
 **Redis Configuration:**
 
 ```bash
-# Redis (Docker containers)
-CACHE_REDIS_URL=redis://localhost:6379/0
-QUEUE_REDIS_URL=redis://localhost:6379/1
+# Redis from the host
+CACHE_REDIS_URL=redis://localhost:6380/0
+QUEUE_REDIS_URL=redis://localhost:6380/1
 ```
 
 **JWKS Configuration (Docker-hosted):**
 
 ```bash
-# JWKS server URLs (hosted by Docker container)
+# JWKS server from the host
 AUTH_JWT_ACCESS_TOKEN_JWKS_URI=http://localhost:3011/.well-known/access-jwks.json
 AUTH_JWT_REFRESH_TOKEN_JWKS_URI=http://localhost:3011/.well-known/refresh-jwks.json
+```
+
+When `apis` runs inside Docker, Compose overrides these values for that container:
+
+```bash
+HTTP_HOST=0.0.0.0
+DATABASE_URL=postgresql://ack:ack_password@postgres:5432/ACKNestJs?schema=public
+CACHE_REDIS_URL=redis://redis:6379/0
+QUEUE_REDIS_URL=redis://redis:6379/1
+KAFKA_BROKERS=kafka:29092
+AUTH_JWT_ACCESS_TOKEN_JWKS_URI=http://jwks-server/.well-known/access-jwks.json
+AUTH_JWT_REFRESH_TOKEN_JWKS_URI=http://jwks-server/.well-known/refresh-jwks.json
 ```
 
 > **For comprehensive environment configuration details**, refer to the [Environment Documentation][ref-doc-environment].
@@ -230,8 +242,8 @@ pnpm generate:keys --direct-insert
 - Creates private/public key pairs for both access and refresh tokens, saved as PEM files in the `/keys` directory
 - Generates JWKS (JSON Web Key Set) files in `/keys` directory
 - Creates `access-jwks.json` and `refresh-jwks.json` for Docker container serving
-- Prints only the output file paths and the generated key IDs (KIDs) — key material is **never** printed to the console
-- With `--direct-insert` flag: Automatically updates your `.env` file with the generated keys and key IDs
+- Prints only the output file paths and the generated key IDs (KIDs). Key material is **never** printed to the console
+- With `--direct-insert` flag: Automatically updates your `.env` file with generated keys, key IDs, and missing local startup secrets
 
 #### Docker JWKS Hosting
 
@@ -253,41 +265,59 @@ Now you're ready to start the complete Docker environment with all services.
 
 ```bash
 # Start PostgreSQL, Kafka, Redis, JWKS, and BullMQ dashboard
-docker-compose up -d
+docker compose up -d postgres redis kafka jwks-server redis-bullboard
 ```
 
 **Start with API container (recommended for full development setup):**
 
 ```bash
 # Start all services including the API container
-docker-compose --profile apis up -d
+docker compose --profile apis up -d --build
 ```
 
 **What this command does:**
 
 - Starts PostgreSQL (port 5432)
 - Starts Kafka (port 9092 for host clients, `kafka:29092` for the API container)
-- Launches Redis server for caching and queues (port 6379)
+- Launches Redis server for caching and queues (host port 6380, container port 6379)
 - Starts JWKS server to host your JWT public keys (port 3011)
 - Runs BullMQ dashboard for queue monitoring (port 3010)
 - Sets up all necessary networks and volumes
 - _(with `--profile apis`)_ Launches the API container running the application (port 3000)
+- _(with `--profile apis`)_ Ensures required InfiniteChat Kafka topics exist before Nest starts
 
 You can monitor the services as they start up:
 
 ```bash
 # Check status of all containers
-docker-compose ps
+docker compose --profile apis ps
 
 # Watch logs from all services
-docker-compose logs -f
+docker compose --profile apis logs -f
 ```
 
 The Docker setup includes comprehensive health checks for all services, ensuring they're fully operational before marking as available.
 
+### First Docker Startup Order
+
+Run these commands on a new local environment:
+
+```bash
+cp .env.example .env
+pnpm generate:keys --direct-insert
+docker compose up -d postgres redis kafka jwks-server redis-bullboard
+pnpm db:generate
+pnpm db:migrate
+pnpm migration:seed
+docker compose --profile apis up -d --build
+docker compose --profile apis ps
+curl --noproxy '*' -fsS http://localhost:3011/.well-known/access-jwks.json
+curl --noproxy '*' -fsS http://localhost:3000/api/public/hello
+```
+
 ### Troubleshooting
 
-- **Port conflicts**: Ensure ports 5432, 6379, 3010, 3011 are not in use by other applications
+- **Port conflicts**: Ensure ports 5432, 6380, 3010, 3011 are not in use by other applications
 - **Host resolution issues**: Add `127.0.0.1 host.docker.internal` to your `/etc/hosts` file if needed
 - **PostgreSQL startup**: Wait for the container health check to pass before running migrations
 - **Permission issues**: Ensure Docker has proper permissions to create volumes and networks

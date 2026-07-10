@@ -307,33 +307,60 @@ class JwtKeysGenerator {
         let envContent = fs.readFileSync(envPath, 'utf8');
 
         const envUpdates = [
-            { key: 'AUTH_JWT_ACCESS_TOKEN_KID', value: accessKid },
-            { key: 'AUTH_JWT_REFRESH_TOKEN_KID', value: refreshKid },
+            {
+                key: 'APP_ENCRYPTION_SECRET_KEY',
+                value: this.createLocalSecret(),
+                overwrite: false,
+            },
+            {
+                key: 'AUTH_TWO_FACTOR_ISSUER',
+                value: 'InfiniteChat',
+                overwrite: false,
+            },
+            {
+                key: 'AUTH_TWO_FACTOR_ENCRYPTION_KEY',
+                value: this.createLocalSecret(),
+                overwrite: false,
+            },
+            {
+                key: 'AUTH_JWT_ACCESS_TOKEN_KID',
+                value: accessKid,
+                overwrite: true,
+            },
+            {
+                key: 'AUTH_JWT_REFRESH_TOKEN_KID',
+                value: refreshKid,
+                overwrite: true,
+            },
             {
                 key: 'AUTH_JWT_ACCESS_TOKEN_PRIVATE_KEY',
                 value: this.pemToBase64(accessKeys.privateKey),
+                overwrite: true,
             },
             {
                 key: 'AUTH_JWT_ACCESS_TOKEN_PUBLIC_KEY',
                 value: this.pemToBase64(accessKeys.publicKey),
+                overwrite: true,
             },
             {
                 key: 'AUTH_JWT_REFRESH_TOKEN_PRIVATE_KEY',
                 value: this.pemToBase64(refreshKeys.privateKey),
+                overwrite: true,
             },
             {
                 key: 'AUTH_JWT_REFRESH_TOKEN_PUBLIC_KEY',
                 value: this.pemToBase64(refreshKeys.publicKey),
+                overwrite: true,
             },
         ];
 
-        for (const { key, value } of envUpdates) {
-            const regex = new RegExp(`^${key}=.*$`, 'm');
-            if (regex.test(envContent)) {
-                envContent = envContent.replace(regex, `${key}=${value}`);
-            } else {
-                envContent += `\n${key}=${value}`;
-            }
+        for (const update of envUpdates) {
+            envContent = this.upsertEnvValue(
+                envContent,
+                update.key,
+                update.value,
+                update.overwrite
+            );
         }
 
         fs.writeFileSync(envPath, envContent);
@@ -345,6 +372,32 @@ class JwtKeysGenerator {
         }
 
         console.log('📝 .env file updated with new keys and KIDs');
+    }
+
+    private createLocalSecret(): string {
+        return crypto.randomBytes(32).toString('base64');
+    }
+
+    private upsertEnvValue(
+        envContent: string,
+        key: string,
+        value: string,
+        overwrite: boolean
+    ): string {
+        const regex = new RegExp(`^${key}=(.*)$`, 'm');
+        const match = envContent.match(regex);
+
+        if (match) {
+            const existingValue = match[1]?.trim() ?? '';
+
+            if (!overwrite && existingValue.length > 0) {
+                return envContent;
+            }
+
+            return envContent.replace(regex, `${key}=${value}`);
+        }
+
+        return `${envContent}\n${key}=${value}`;
     }
 }
 
@@ -370,22 +423,22 @@ Commands:
   generate    Generate JWT keys (ES256 for access tokens, ES512 for refresh tokens) and JWKS with outputs:
               1. Save keys to ./keys directory as PEM files (always)
               2. Create separate access/refresh JWKS files (always)
-              3. Update .env with keys and KIDs (only with --direct-insert flag)
+              3. Update .env with keys, KIDs, and missing local startup secrets (only with --direct-insert flag)
               Key material is never printed to the console; only file paths and KIDs are shown.
 
 Options:
   --direct-insert   [OPTIONAL] Enable automatic .env file update
                     By default, .env is NOT updated automatically for safety
-                    Use this flag when you want keys inserted directly into .env
+                    Use this flag when you want keys and missing local startup secrets inserted directly into .env
 
 Examples:
   # Default behavior - NO .env update (keys written to ./keys only)
   pnpm generate:keys
-  node generate-keys.js generate
+  ts-node --project tsconfig.scripts.json --transpile-only scripts/generate-keys.ts generate
 
   # Auto-update .env file - keys inserted automatically
   pnpm generate:keys --direct-insert
-  node generate-keys.js generate --direct-insert
+  ts-node --project tsconfig.scripts.json --transpile-only scripts/generate-keys.ts generate --direct-insert
         `);
     }
 }

@@ -8,10 +8,20 @@ services:
         hostname: apis
         ports:
             - 3000:3000
+        env_file:
+            - .env
         volumes:
             - ./:/app/
+            - api_node_modules:/app/node_modules
+            - api_generated:/app/generated
         environment:
+            HTTP_HOST: 0.0.0.0
+            DATABASE_URL: postgresql://ack:ack_password@postgres:5432/ACKNestJs?schema=public
+            CACHE_REDIS_URL: redis://redis:6379/0
+            QUEUE_REDIS_URL: redis://redis:6379/1
             KAFKA_BROKERS: kafka:29092
+            AUTH_JWT_ACCESS_TOKEN_JWKS_URI: http://jwks-server/.well-known/access-jwks.json
+            AUTH_JWT_REFRESH_TOKEN_JWKS_URI: http://jwks-server/.well-known/refresh-jwks.json
         restart: on-failure
         networks:
             - app-network
@@ -32,7 +42,7 @@ services:
                     '--no-verbose',
                     '--tries=1',
                     '--spider',
-                    'http://localhost:3000/api/hello',
+                    'http://localhost:3000/api/public/hello',
                 ]
             interval: 30s
             timeout: 10s
@@ -127,7 +137,7 @@ services:
         image: redis:latest
         hostname: redis
         ports:
-            - '6379:6379'
+            - '6380:6379'
         volumes:
             - redis_data:/data
         networks:
@@ -232,6 +242,8 @@ services:
             start_period: 30s
 
 volumes:
+    api_node_modules:
+    api_generated:
     postgres_data:
     kafka_data:
     redis_data:

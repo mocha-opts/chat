@@ -277,11 +277,16 @@ pnpm install
 
 ```bash
 cp .env.example .env
-pnpm generate:keys
-docker-compose up -d
+pnpm generate:keys --direct-insert
 ```
 
-数据库：
+启动 Docker 依赖：
+
+```bash
+docker compose up -d postgres redis kafka jwks-server redis-bullboard
+```
+
+数据库初始化：
 
 ```bash
 pnpm db:generate
@@ -289,11 +294,16 @@ pnpm db:migrate
 pnpm migration:seed
 ```
 
-启动：
+启动完整 Docker 后端：
 
 ```bash
-pnpm start:dev
+docker compose --profile apis up -d --build
+docker compose --profile apis ps
+curl --noproxy '*' -fsS http://localhost:3011/.well-known/access-jwks.json
+curl --noproxy '*' -fsS http://localhost:3000/api/public/hello
 ```
+
+默认 `docker compose up -d` 只启动 PostgreSQL、Kafka、Redis、JWKS server 和 BullMQ dashboard。后端 API 保留在 `apis` profile 中，完整启动命令是 `docker compose --profile apis up -d --build`。`.env` 保持 host 本地开发友好的 `localhost` 地址，API 容器内的 PostgreSQL、Redis、Kafka 和 JWKS 地址由 `docker-compose.yml` 覆盖为 compose service name。API 容器启动 Nest 前会确保 InfiniteChat IM Kafka topics 已存在，避免首次启动依赖 Kafka 自动建 topic。
 
 Swagger 文档默认在非生产环境开放。生产环境会按 ACK 规则关闭文档。
 

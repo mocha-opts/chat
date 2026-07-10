@@ -1,12 +1,29 @@
-FROM node:lts-alpine
+FROM public.ecr.aws/docker/library/node:24-alpine
 LABEL maintainer="andrechristikan@gmail.com"
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+ARG NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=${NPM_CONFIG_REGISTRY}
 
-RUN set -x && pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN set -e; \
+    corepack enable; \
+    package_manager="$(node -p "require('./package.json').packageManager")"; \
+    for attempt in 1 2 3; do \
+        if corepack prepare "$package_manager" --activate; then \
+            break; \
+        fi; \
+        if [ "$attempt" = "3" ]; then \
+            exit 1; \
+        fi; \
+        sleep 5; \
+    done
+
+RUN --mount=type=cache,id=infinitechat-pnpm-store,target=/pnpm/store \
+    set -x && \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000 --fetch-timeout=300000
 
 RUN touch .env
 
@@ -16,4 +33,4 @@ RUN pnpm db:generate
 
 EXPOSE 3000
 
-CMD [ "pnpm", "start:dev" ]
+CMD [ "sh", "-c", "node scripts/docker/ensure-kafka-topics.mjs && pnpm start:dev" ]

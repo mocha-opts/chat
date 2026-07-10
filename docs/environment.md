@@ -71,7 +71,7 @@ If validation fails, the application will not start and will display detailed er
 Below is an example `.env` file based on the current `.env.example`:
 
 > [!WARNING]
-> **Security**: All secret and key values below (`*_ENCRYPTION_SECRET_KEY`, `*_ENCRYPTION_KEY`, `AUTH_JWT_*_KEY`) are placeholders for illustration only. They are intentionally left empty in `.env.example` so startup validation fails until you set them. Generate a unique random value per environment — never copy these examples as-is. For a 32+ character secret: `openssl rand -base64 32`.
+> **Security**: All secret and key values below (`*_ENCRYPTION_SECRET_KEY`, `*_ENCRYPTION_KEY`, `AUTH_JWT_*_KEY`) are placeholders for illustration only. They are intentionally left empty in `.env.example` so startup validation fails until you set them. Generate a unique random value per environment; never copy these examples as-is. For a 32+ character secret: `openssl rand -base64 32`.
 
 ```bash
 # Application Settings
@@ -167,8 +167,8 @@ FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
 
 # Redis
-CACHE_REDIS_URL=redis://localhost:6379/0
-QUEUE_REDIS_URL=redis://localhost:6379/1
+CACHE_REDIS_URL=redis://localhost:6380/0
+QUEUE_REDIS_URL=redis://localhost:6380/1
 
 # Debug (Optional)
 SENTRY_DSN=
@@ -209,7 +209,7 @@ APP_TIMEZONE=Asia/Jakarta
 ```
 
 **`APP_ENCRYPTION_SECRET_KEY`** _(required)_
-Secret key used to derive an AES-256 encryption key for encrypting sensitive data. Must be 32-64 characters (enforced by `@MinLength(32)` / `@MaxLength(64)`). Empty by default — startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.
+Secret key used to derive an AES-256 encryption key for encrypting sensitive data. Must be 32-64 characters (enforced by `@MinLength(32)` / `@MaxLength(64)`). Empty by default; startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.
 
 ```bash
 APP_ENCRYPTION_SECRET_KEY=<your_app_encryption_secret_key>
@@ -291,16 +291,16 @@ Comma-separated list of allowed CORS origins. Supports subdomain wildcards and e
 
 **Syntax:**
 
-- `*` — Allow all origins (credentials disabled)
-- `hostname` — Single origin (e.g., `example.com`)
-- `*.subdomain` — Wildcard subdomains (e.g., `*.example.com` matches `api.example.com` and `example.com`)
-- `hostname:port` — Specific hostname with port (e.g., `api.example.com:3000`)
-- `*.subdomain:port` — Wildcard with explicit port (e.g., `*.example.com:3000`)
+- `*`: Allow all origins (credentials disabled)
+- `hostname`: Single origin (e.g., `example.com`)
+- `*.subdomain`: Wildcard subdomains (e.g., `*.example.com` matches `api.example.com` and `example.com`)
+- `hostname:port`: Specific hostname with port (e.g., `api.example.com:3000`)
+- `*.subdomain:port`: Wildcard with explicit port (e.g., `*.example.com:3000`)
 
 **Examples:**
 
 ```bash
-# Allow all origins (development only) — credentials NOT allowed
+# Allow all origins (development only); credentials NOT allowed
 CORS_ALLOWED_ORIGIN=*
 
 # Specific origins
@@ -312,20 +312,20 @@ CORS_ALLOWED_ORIGIN=*.example.com,api.myapp.com
 # Multiple domains with explicit ports
 CORS_ALLOWED_ORIGIN=*.example.com:3000,api.myapp.com:8080,localhost:3000
 
-# Mixed — wildcards and specific ports
+# Mixed: wildcards and specific ports
 CORS_ALLOWED_ORIGIN=*.example.com,api.production.com:443,localhost:3000
 ```
 
 **Port Matching Behavior:**
 
 ```bash
-# ✅ SUPPORTED — Exact port matching
+# ✅ SUPPORTED: Exact port matching
 CORS_ALLOWED_ORIGIN=api.example.com:3000  # Matches: http://api.example.com:3000, https://api.example.com:3000
 
-# ❌ NOT SUPPORTED — Port wildcards
+# ❌ NOT SUPPORTED: Port wildcards
 CORS_ALLOWED_ORIGIN=api.example.com:*     # Does NOT work
 
-# ✅ SUPPORTED — Default port (implicit)
+# ✅ SUPPORTED: Default port (implicit)
 CORS_ALLOWED_ORIGIN=api.example.com       # Matches: http://api.example.com, https://api.example.com (no explicit port)
 ```
 
@@ -526,14 +526,14 @@ AUTH_SOCIAL_APPLE_SIGN_IN_CLIENT_ID=
 ### Two-Factor Authentication Settings
 
 **`AUTH_TWO_FACTOR_ISSUER`** _(required)_
-Issuer name displayed in authenticator apps. Empty by default — startup validation rejects an unset value.
+Issuer name displayed in authenticator apps. Empty by default; startup validation rejects an unset value.
 
 ```bash
 AUTH_TWO_FACTOR_ISSUER=ACKNestJsTwoFactor
 ```
 
 **`AUTH_TWO_FACTOR_ENCRYPTION_KEY`** _(required)_
-Secret used to derive an AES-256 key for encrypting TOTP secrets (recommended 32+ chars). Empty by default — startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.
+Secret used to derive an AES-256 key for encrypting TOTP secrets (recommended 32+ chars). Empty by default; startup validation rejects an unset value. Generate a unique key per environment (`openssl rand -base64 32`); never reuse the example below.
 
 ```bash
 AUTH_TWO_FACTOR_ENCRYPTION_KEY=<your_two_factor_encryption_key>
@@ -708,14 +708,14 @@ FIREBASE_PRIVATE_KEY=
 Redis URL for caching operations.
 
 ```bash
-CACHE_REDIS_URL=redis://localhost:6379/0
+CACHE_REDIS_URL=redis://localhost:6380/0
 ```
 
 **`QUEUE_REDIS_URL`** _(required)_
 Redis URL for queue operations (background jobs).
 
 ```bash
-QUEUE_REDIS_URL=redis://localhost:6379/1
+QUEUE_REDIS_URL=redis://localhost:6380/1
 ```
 
 ### Debug Settings
