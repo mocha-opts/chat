@@ -105,7 +105,8 @@ export class ContactRepository {
 
     async findExistingApplication(
         senderId: string,
-        receiverId: string
+        receiverId: string,
+        now: Date
     ): Promise<{ id: bigint; status: EnumFriendApplicationStatus } | null> {
         return this.databaseService.friendApplication.findFirst({
             where: {
@@ -117,6 +118,16 @@ export class ContactRepository {
                         EnumFriendApplicationStatus.read,
                     ],
                 },
+                OR: [
+                    {
+                        expiredAt: null,
+                    },
+                    {
+                        expiredAt: {
+                            gt: now,
+                        },
+                    },
+                ],
             },
             select: {
                 id: true,
@@ -131,23 +142,43 @@ export class ContactRepository {
     async createApplication(
         senderId: string,
         receiverId: string,
-        message: string | null
-    ): Promise<void> {
-        await this.databaseService.friendApplication.create({
+        message: string | null,
+        expiredAt: Date
+    ): Promise<bigint> {
+        const application = await this.databaseService.friendApplication.create({
             data: {
                 senderId,
                 receiverId,
                 message,
                 status: EnumFriendApplicationStatus.unread,
+                expiredAt,
+            },
+            select: {
+                id: true,
             },
         });
+
+        return application.id;
     }
 
-    async countUnreadApplications(receiverId: string): Promise<number> {
+    async countUnreadApplications(
+        receiverId: string,
+        now: Date
+    ): Promise<number> {
         return this.databaseService.friendApplication.count({
             where: {
                 receiverId,
                 status: EnumFriendApplicationStatus.unread,
+                OR: [
+                    {
+                        expiredAt: null,
+                    },
+                    {
+                        expiredAt: {
+                            gt: now,
+                        },
+                    },
+                ],
             },
         });
     }
@@ -192,9 +223,30 @@ export class ContactRepository {
         return { data, total };
     }
 
+    async expireApplicationsForUser(userId: string, now: Date): Promise<void> {
+        await this.databaseService.friendApplication.updateMany({
+            where: {
+                OR: [{ senderId: userId }, { receiverId: userId }],
+                status: {
+                    in: [
+                        EnumFriendApplicationStatus.unread,
+                        EnumFriendApplicationStatus.read,
+                    ],
+                },
+                expiredAt: {
+                    lte: now,
+                },
+            },
+            data: {
+                status: EnumFriendApplicationStatus.expired,
+            },
+        });
+    }
+
     async markApplicationsRead(
         receiverId: string,
-        senderIds: string[]
+        senderIds: string[],
+        now: Date
     ): Promise<void> {
         await this.databaseService.friendApplication.updateMany({
             where: {
@@ -203,6 +255,16 @@ export class ContactRepository {
                     in: senderIds,
                 },
                 status: EnumFriendApplicationStatus.unread,
+                OR: [
+                    {
+                        expiredAt: null,
+                    },
+                    {
+                        expiredAt: {
+                            gt: now,
+                        },
+                    },
+                ],
             },
             data: {
                 status: EnumFriendApplicationStatus.read,
@@ -212,7 +274,8 @@ export class ContactRepository {
 
     async acceptApplication(
         receiverId: string,
-        senderId: string
+        senderId: string,
+        now: Date
     ): Promise<IContactAcceptApplicationResult | null> {
         return this.databaseService.$transaction(async tx => {
             const application = await tx.friendApplication.findFirst({
@@ -225,6 +288,16 @@ export class ContactRepository {
                             EnumFriendApplicationStatus.read,
                         ],
                     },
+                    OR: [
+                        {
+                            expiredAt: null,
+                        },
+                        {
+                            expiredAt: {
+                                gt: now,
+                            },
+                        },
+                    ],
                 },
                 orderBy: {
                     createdAt: 'desc',

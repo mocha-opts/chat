@@ -26,11 +26,14 @@ import { ConversationPermissionDeniedException } from '@modules/conversation/exc
 import { ConversationUserInactiveException } from '@modules/conversation/exceptions/conversation.user-inactive.exception';
 import { ConversationUserNotFoundException } from '@modules/conversation/exceptions/conversation.user-not-found.exception';
 import {
+    IConversationEntity,
     IConversationMember,
+    IConversationNewGroupSessionRealtimePayload,
     IConversationUser,
 } from '@modules/conversation/interfaces/conversation.interface';
 import { IConversationService } from '@modules/conversation/interfaces/conversation.service.interface';
 import { ConversationRepository } from '@modules/conversation/repositories/conversation.repository';
+import { RealtimeService } from '@modules/realtime/services/realtime.service';
 import { Injectable } from '@nestjs/common';
 import {
     EnumConversationMemberRole,
@@ -40,7 +43,8 @@ import {
 @Injectable()
 export class ConversationService implements IConversationService {
     constructor(
-        private readonly conversationRepository: ConversationRepository
+        private readonly conversationRepository: ConversationRepository,
+        private readonly realtimeService: RealtimeService
     ) {}
 
     async createGroup(
@@ -62,6 +66,11 @@ export class ConversationService implements IConversationService {
                 uniqueMembers,
                 failedIds,
                 groupName
+            );
+            await this.pushGroupConversation(
+                result.creator,
+                result.conversation,
+                result.members
             );
 
             return {
@@ -85,7 +94,7 @@ export class ConversationService implements IConversationService {
     ): Promise<IResponseReturn<ConversationInviteGroupResponseDto>> {
         const inviter = await this.resolveActor(authUserId, inviterId);
         const conversationId = this.parseConversationId(sessionId);
-        await this.assertGroupExists(conversationId);
+        const conversation = await this.assertGroupExists(conversationId);
         const inviterMember = await this.assertMember(conversationId, inviter.id);
         this.assertOwnerOrAdmin(inviterMember);
 
@@ -118,6 +127,11 @@ export class ConversationService implements IConversationService {
             await this.conversationRepository.addMembers(
                 conversationId,
                 successUsers.map(user => user.id)
+            );
+            await this.pushGroupConversation(
+                inviter,
+                conversation,
+                successUsers
             );
         } catch (err: unknown) {
             throw new AppUnknownException(err);
@@ -270,6 +284,34 @@ export class ConversationService implements IConversationService {
         };
     }
 
+    private async pushGroupConversation(
+        creator: IConversationUser,
+        conversation: IConversationEntity,
+        receivers: IConversationUser[]
+    ): Promise<void> {
+        if (receivers.length === 0) {
+            return;
+        }
+
+        const payload: IConversationNewGroupSessionRealtimePayload = {
+            creatorId: this.displayUserId(creator),
+            sessionId: conversation.id.toString(),
+            sessionType: ContactLegacyConversationType.group,
+            sessionName: conversation.name,
+            avatar: ContactLegacyGroupAvatar,
+        };
+
+        await Promise.all(
+            receivers.map(receiver =>
+                this.realtimeService.pushConversation(
+                    receiver.id,
+                    payload,
+                    conversation.id.toString()
+                )
+            )
+        );
+    }
+
     private async resolveActor(
         authUserId: string,
         identifier: string
@@ -322,7 +364,7 @@ export class ConversationService implements IConversationService {
 
     private async assertGroupExists(
         conversationId: bigint
-    ): Promise<void> {
+    ): Promise<IConversationEntity> {
         const conversation =
             await this.conversationRepository.findGroupConversation(
                 conversationId
@@ -330,6 +372,8 @@ export class ConversationService implements IConversationService {
         if (!conversation) {
             throw new ConversationNotFoundException();
         }
+
+        return conversation;
     }
 
     private async assertMember(

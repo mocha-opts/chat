@@ -1,5 +1,7 @@
 import { AppUnknownException } from '@app/exceptions/app.unknown.exception';
+import { HelperService } from '@common/helper/services/helper.service';
 import { IResponseReturn } from '@common/response/interfaces/response.interface';
+import { ContactFriendApplicationExpirationInHours } from '@modules/contact/constants/contact.friend-application.constant';
 import { ContactAddFriendRequestDto } from '@modules/contact/dtos/request/contact.add-friend.request.dto';
 import { ContactApplyListRequestDto } from '@modules/contact/dtos/request/contact.apply-list.request.dto';
 import { ContactModifyApplicationRequestDto } from '@modules/contact/dtos/request/contact.modify-application.request.dto';
@@ -28,16 +30,23 @@ import { ContactUserInactiveException } from '@modules/contact/exceptions/contac
 import { ContactUserNotFoundException } from '@modules/contact/exceptions/contact.user-not-found.exception';
 import {
     IContactFriendApplication,
+    IContactFriendApplicationRealtimePayload,
+    IContactNewSessionRealtimePayload,
     IContactUser,
 } from '@modules/contact/interfaces/contact.interface';
 import { IContactService } from '@modules/contact/interfaces/contact.service.interface';
 import { ContactRepository } from '@modules/contact/repositories/contact.repository';
+import { RealtimeService } from '@modules/realtime/services/realtime.service';
 import { Injectable } from '@nestjs/common';
 import { EnumFriendStatus, EnumUserStatus } from '@generated/prisma-client';
 
 @Injectable()
 export class ContactService implements IContactService {
-    constructor(private readonly contactRepository: ContactRepository) {}
+    constructor(
+        private readonly contactRepository: ContactRepository,
+        private readonly realtimeService: RealtimeService,
+        private readonly helperService: HelperService
+    ) {}
 
     async searchUser(
         authUserId: string,
@@ -89,20 +98,34 @@ export class ContactService implements IContactService {
             throw new ContactAlreadyFriendException();
         }
 
+        const now = this.helperService.dateCreate();
+        let applicationId: bigint | null = null;
         const existing = await this.contactRepository.findExistingApplication(
             sender.id,
-            receiver.id
+            receiver.id,
+            now
         );
         if (!existing) {
             try {
-                await this.contactRepository.createApplication(
+                const expiredAt = this.helperService.dateForward(
+                    now,
+                    this.helperService.dateCreateDuration({
+                        hours: ContactFriendApplicationExpirationInHours,
+                    })
+                );
+                applicationId = await this.contactRepository.createApplication(
                     sender.id,
                     receiver.id,
-                    msg ?? null
+                    msg ?? null,
+                    expiredAt
                 );
             } catch (err: unknown) {
                 throw new AppUnknownException(err);
             }
+        }
+
+        if (applicationId) {
+            await this.pushFriendApplication(sender, receiver, applicationId);
         }
 
         return { data: 1 };
@@ -145,8 +168,11 @@ export class ContactService implements IContactService {
         userIdentifier: string
     ): Promise<IResponseReturn<ContactApplyCountResponseDto>> {
         const actor = await this.resolveActor(authUserId, userIdentifier);
+        const now = this.helperService.dateCreate();
+        await this.contactRepository.expireApplicationsForUser(actor.id, now);
         const count = await this.contactRepository.countUnreadApplications(
-            actor.id
+            actor.id,
+            now
         );
 
         return { data: { count } };
@@ -158,6 +184,10 @@ export class ContactService implements IContactService {
         query: ContactApplyListRequestDto
     ): Promise<IResponseReturn<ContactApplyListResponseDto>> {
         const actor = await this.resolveActor(authUserId, userIdentifier);
+        await this.contactRepository.expireApplicationsForUser(
+            actor.id,
+            this.helperService.dateCreate()
+        );
         const page = query.pageNum ?? 1;
         const perPage = query.pageSize ?? 20;
         const { data, total } = await this.contactRepository.findApplications(
@@ -184,12 +214,15 @@ export class ContactService implements IContactService {
         { receiveUserUuids }: ContactModifyApplicationRequestDto
     ): Promise<IResponseReturn<ContactApplicationResponseDto | null>> {
         const actor = await this.resolveActor(authUserId, userIdentifier);
+        const now = this.helperService.dateCreate();
+        await this.contactRepository.expireApplicationsForUser(actor.id, now);
         const statusCode = Number(status);
         if (statusCode === ContactLegacyApplicationStatus.read) {
             const senders = await this.resolveUsers(receiveUserUuids);
             await this.contactRepository.markApplicationsRead(
                 actor.id,
-                senders.map(sender => sender.id)
+                senders.map(sender => sender.id),
+                now
             );
 
             return { data: null };
@@ -209,11 +242,18 @@ export class ContactService implements IContactService {
         try {
             const result = await this.contactRepository.acceptApplication(
                 actor.id,
-                sender.id
+                sender.id,
+                now
             );
             if (!result) {
                 throw new ContactApplicationNotFoundException();
             }
+
+            await this.pushNewSingleConversation(
+                actor,
+                result.applicant,
+                result.conversationId
+            );
 
             return {
                 data: {
@@ -281,6 +321,42 @@ export class ContactService implements IContactService {
         }
 
         return { data: { message: '拉黑好友成功' } };
+    }
+
+    private async pushFriendApplication(
+        sender: IContactUser,
+        receiver: IContactUser,
+        applicationId: bigint
+    ): Promise<void> {
+        const payload: IContactFriendApplicationRealtimePayload = {
+            applyUserName: sender.name ?? sender.username,
+        };
+
+        await this.realtimeService.pushFriendApplication(
+            receiver.id,
+            payload,
+            applicationId.toString()
+        );
+    }
+
+    private async pushNewSingleConversation(
+        accepter: IContactUser,
+        applicant: IContactUser,
+        conversationId: bigint
+    ): Promise<void> {
+        const payload: IContactNewSessionRealtimePayload = {
+            userId: this.displayUserId(accepter),
+            sessionId: conversationId.toString(),
+            sessionType: ContactLegacyConversationType.single,
+            sessionName: accepter.name ?? accepter.username,
+            avatar: this.pickAvatar(accepter),
+        };
+
+        await this.realtimeService.pushConversation(
+            applicant.id,
+            payload,
+            conversationId.toString()
+        );
     }
 
     private async resolveActor(

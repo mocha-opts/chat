@@ -90,7 +90,7 @@ export class ConversationRepository {
             },
         });
 
-        return { conversation, creator, failedMemberIds };
+        return { conversation, creator, members, failedMemberIds };
     }
 
     async findGroupConversation(

@@ -336,14 +336,14 @@ pnpm lint
 
 - [x] 新建或扩展 `contact` 模块。
 - [x] 新建 `conversation` 模块承接旧 `session` 和 `user_session`。
-- [x] 好友申请写入 `friend_applications`，Redis 只做过期辅助，不作为唯一状态。
+- [x] 好友申请写入 `friend_applications`，`expiredAt` 保存 72 小时过期时间，Redis 不作为唯一状态。
 - [x] 通过好友申请时在同一事务中创建双向好友和单聊会话。
 - [x] 删除好友时清理好友关系和单聊会话成员关系。
 - [x] 群聊创建时创建会话、群主成员关系和普通成员关系。
 - [x] 邀请、踢人、退群、设置管理员都写入 `conversation_members`。
-- [ ] 好友申请、新会话、新群会话推送改为同进程 service 调用或 Kafka 事件，不再 HTTP 调用实时服务。
+- [x] 好友申请、新会话、新群会话推送改为同进程 service 调用或 Kafka 事件，不再 HTTP 调用实时服务。
 
-备注：阶段 3 基础关系和会话闭环已接入 `/api/v1/contact/**` 旧路径。实时推送等待阶段 4 的 `realtime` 模块后接入，当前实现没有恢复旧 Java 的内部 HTTP 推送调用。
+备注：阶段 3 基础关系和会话闭环已接入 `/api/v1/contact/**` 旧路径。好友申请创建时写入 72 小时 `expiredAt`，查询、计数和处理申请前会把过期的 unread/read 申请标记为 expired。好友申请、通过申请后的单聊会话、建群和邀请入群已接入同进程 `RealtimeService`，当前实现没有恢复旧 Java 的内部 HTTP 推送调用。
 
 验证：
 
@@ -368,7 +368,7 @@ pnpm lint
 - [x] 待 ACK 消息保存在进程内或 Redis 中，第一版可以进程内，后续根据多实例需求升级 Redis。
 - [x] ACK 超时重试，超过阈值后停止实时重试，但消息仍在 PostgreSQL 中可离线拉取。
 
-备注：阶段 4 已完成实时通信基础能力，使用 Nest WebSocket Gateway 和 `@nestjs/platform-ws` 挂载旧 `/api/v1/netty` path。握手兼容旧 `userUuid` 和 `token` header，也支持 query 参数；`userUuid` 会解析为 ACK `User.id` 后再和 JWT subject 比对。好友申请、新会话、新群会话的业务调用接入仍保持阶段 3 未完成项，等待后续把 contact、conversation、messaging 与 `RealtimeService` 或 Kafka realtime 事件连接。
+备注：阶段 4 已完成实时通信基础能力，使用 Nest WebSocket Gateway 和 `@nestjs/platform-ws` 挂载旧 `/api/v1/netty` path。握手兼容旧 `userUuid` 和 `token` header，也支持 query 参数；`userUuid` 会解析为 ACK `User.id` 后再和 JWT subject 比对。好友申请、新会话、新群会话、消息和朋友圈的业务调用都已通过同进程 `RealtimeService` 接入。
 
 验证：
 

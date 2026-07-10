@@ -30,5 +30,15 @@ export interface IConversationMember {
 export interface IConversationCreateGroupResult {
     conversation: IConversationEntity;
     creator: IConversationUser;
+    members: IConversationUser[];
     failedMemberIds: string[];
+}
+
+export interface IConversationNewGroupSessionRealtimePayload
+    extends Record<string, unknown> {
+    creatorId: string;
+    sessionId: string;
+    sessionType: number;
+    sessionName: string;
+    avatar: string | null;
 }

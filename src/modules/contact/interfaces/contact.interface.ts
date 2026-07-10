@@ -43,3 +43,17 @@ export interface IContactAcceptApplicationResult {
     applicant: IContactUser;
     conversationId: bigint;
 }
+
+export interface IContactFriendApplicationRealtimePayload
+    extends Record<string, unknown> {
+    applyUserName: string;
+}
+
+export interface IContactNewSessionRealtimePayload
+    extends Record<string, unknown> {
+    userId: string;
+    sessionId: string;
+    sessionType: number;
+    sessionName: string;
+    avatar: string | null;
+}

@@ -642,7 +642,7 @@ flowchart LR
 
 - 注册：手机号唯一，验证码 Redis TTL 为 5 分钟，旧密码是 MD5。目标必须改 bcrypt。注册成功创建 `UserBalance`，初始余额沿用旧语义为 `1000`。
 - 验证码：旧注册和邮箱发送都使用 `register:code:<phone>`，目标必须按 `verification:<purpose>:<channel>:<target>` 拆分，防止邮箱和手机号语义混用。
-- 好友申请：新申请写 `ApplyFriend`，初始状态为 unread，Redis `friend_request:<id>` 保存 72 小时过期辅助状态。PostgreSQL 仍是权威状态。
+- 好友申请：新申请写 `FriendApplication`，初始状态为 unread，`expiredAt` 保存 72 小时过期时间。PostgreSQL 仍是权威状态，Redis 不能作为唯一过期依据。
 - 通过好友申请：事务中更新申请状态为 accepted，创建双向好友关系、单聊会话、双方会话成员，并发送新会话通知。
 - 删除好友：删除双方申请记录、双向好友关系、单聊会话和对应会话成员。目标实现需要确保历史消息策略在 schema 设计时明确。
 - 拉黑好友：只更新发起方到接收方的好友关系为 blocked。
@@ -674,11 +674,11 @@ flowchart LR
 
 - 旧路径统一使用 ACK `@Response`，写操作和关系查询使用 JWT 鉴权，并校验 path 或 body 里的用户 ID 必须解析到当前 token subject。
 - 用户 ID 兼容 UUID 和 `User.legacyId`。旧 Java Long 字符串优先按 `legacyId` 查询，UUID 字符串按 `User.id` 查询。
-- 好友申请写入 `friend_applications`。通过申请时使用 Prisma interactive transaction 更新申请状态，创建双向 `friends`，创建 `conversations` 单聊和两条 `conversation_members`。
+- 好友申请写入 `friend_applications`。创建申请时写入 72 小时 `expiredAt`，查询、计数、标记已读和接受申请前会把过期的 unread/read 申请标记为 expired。通过申请时使用 Prisma interactive transaction 更新申请状态，创建双向 `friends`，创建 `conversations` 单聊和两条 `conversation_members`。
 - 删除好友使用软状态：双向好友关系标记为 `deleted`，单聊会话和成员关系标记为 `deleted`，不物理删除历史关系数据。
 - 群聊创建、邀请、踢人、退群和设置管理员都写 `conversation_members`，角色使用 `owner`、`admin`、`member`。
 - 旧 Java 数字响应语义在兼容层映射：好友 `normal=1`、`blocked=2`、`deleted=3`、非好友 `0`；好友申请 `unread=0`、`accepted=1`、`rejected=2`、`read=3`、`expired=4`；会话 `single=1`、`group=2`。
-- 阶段 3 不恢复旧 Java 对实时服务的内部 HTTP 调用。好友申请、新会话、新群会话通知等待阶段 4 `realtime` 模块以同进程 service 或 Kafka 事件接入。
+- 阶段 3 不恢复旧 Java 对实时服务的内部 HTTP 调用。好友申请、新会话、新群会话通知已通过同进程 `RealtimeService` 接入，推送 payload 保持旧 Java 字段：`applyUserName`、`userId`、`creatorId`、`sessionId`、`sessionType`、`sessionName`、`avatar`。
 - 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
 
 ### 12.6 阶段 4 实现基线
@@ -696,7 +696,7 @@ flowchart LR
 - 客户端 `ACK=1` 会删除同一 `msgUuid` 的待确认记录。`LOG_OUT=2` 会删除连接、在线路由和该用户待 ACK。`HEART_BEAT=5` 会刷新在线路由并回包 type `5`。
 - `RealtimeService` 暴露 message、moment、friend application、conversation 四类推送方法，服务端推送 envelope 保持 `{ type, msgUuid, data }`。
 - 待 ACK 第一版保存在进程内，超时 5 秒重试，最多 3 次。超过后只停止实时重试，不删除 PostgreSQL 中已经持久化或待持久化的消息。
-- 阶段 4 只完成 realtime 基础能力。好友申请、新会话、新群会话和消息发送的业务调用接入仍由阶段 5 或后续阶段完成。
+- 阶段 4 提供 realtime 基础能力。好友申请、新会话、新群会话、消息发送和朋友圈通知已由业务模块通过同进程 `RealtimeService` 接入。
 - 本阶段没有编辑 Prisma schema，也没有运行 `db:migrate`、`db:push` 或数据库写入命令。
 
 ### 12.7 阶段 5 实现基线
