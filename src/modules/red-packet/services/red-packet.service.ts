@@ -31,15 +31,8 @@ import {
     EnumRedPacketLegacyStatus,
     EnumRedPacketLegacyType,
 } from '@modules/red-packet/enums/red-packet.legacy.enum';
-import { RedPacketAmountInvalidException } from '@modules/red-packet/exceptions/red-packet.amount-invalid.exception';
-import { RedPacketClaimFailedException } from '@modules/red-packet/exceptions/red-packet.claim-failed.exception';
-import { RedPacketConversationNotFoundException } from '@modules/red-packet/exceptions/red-packet.conversation-not-found.exception';
-import { RedPacketForbiddenException } from '@modules/red-packet/exceptions/red-packet.forbidden.exception';
-import { RedPacketInsufficientBalanceException } from '@modules/red-packet/exceptions/red-packet.insufficient-balance.exception';
-import { RedPacketNotFoundException } from '@modules/red-packet/exceptions/red-packet.not-found.exception';
-import { RedPacketTypeInvalidException } from '@modules/red-packet/exceptions/red-packet.type-invalid.exception';
-import { RedPacketUserInactiveException } from '@modules/red-packet/exceptions/red-packet.user-inactive.exception';
-import { RedPacketUserNotFoundException } from '@modules/red-packet/exceptions/red-packet.user-not-found.exception';
+import { EnumRedPacketStatusCodeError } from '@modules/red-packet/enums/red-packet.status-code.enum';
+import { RedPacketException } from '@modules/red-packet/exceptions/red-packet.exception';
 import {
     IRedPacketDetail,
     IRedPacketUser,
@@ -71,7 +64,9 @@ export class RedPacketService implements IRedPacketService {
         const conversation =
             await this.redPacketRepository.findConversation(conversationId);
         if (!conversation) {
-            throw new RedPacketConversationNotFoundException();
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.conversationNotFound
+            );
         }
 
         const totalAmount = new Prisma.Decimal(body.body.totalAmount);
@@ -99,7 +94,9 @@ export class RedPacketService implements IRedPacketService {
                 expireAt: new Date(Date.now() + RedPacketExpireInMs),
             });
         if (!redPacket) {
-            throw new RedPacketInsufficientBalanceException();
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.insufficientBalance
+            );
         }
 
         try {
@@ -153,7 +150,7 @@ export class RedPacketService implements IRedPacketService {
         const redPacket =
             await this.redPacketRepository.findRedPacket(redPacketId);
         if (!redPacket) {
-            throw new RedPacketNotFoundException();
+            throw new RedPacketException(EnumRedPacketStatusCodeError.notFound);
         }
         if (
             redPacket.status === EnumRedPacketStatus.expired ||
@@ -236,7 +233,9 @@ export class RedPacketService implements IRedPacketService {
                 amount
             );
             if (!persisted.ok) {
-                throw new RedPacketClaimFailedException();
+                throw new RedPacketException(
+                    EnumRedPacketStatusCodeError.claimFailed
+                );
             }
 
             return {
@@ -248,7 +247,10 @@ export class RedPacketService implements IRedPacketService {
                 receiverId,
                 amount
             );
-            throw new RedPacketClaimFailedException(error);
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.claimFailed,
+                { rawError: error }
+            );
         }
     }
 
@@ -262,7 +264,7 @@ export class RedPacketService implements IRedPacketService {
             query.pageSize ?? 10
         );
         if (!detail) {
-            throw new RedPacketNotFoundException();
+            throw new RedPacketException(EnumRedPacketStatusCodeError.notFound);
         }
 
         return {
@@ -298,10 +300,14 @@ export class RedPacketService implements IRedPacketService {
             .findUserByIdentifier(identifier)
             .then(user => {
                 if (!user) {
-                    throw new RedPacketUserNotFoundException();
+                    throw new RedPacketException(
+                        EnumRedPacketStatusCodeError.userNotFound
+                    );
                 }
                 if (user.status !== EnumUserStatus.active) {
-                    throw new RedPacketUserInactiveException();
+                    throw new RedPacketException(
+                        EnumRedPacketStatusCodeError.userInactive
+                    );
                 }
 
                 return user;
@@ -310,7 +316,7 @@ export class RedPacketService implements IRedPacketService {
 
     private assertCurrentUser(authUserId: string, userId: string): void {
         if (authUserId !== userId) {
-            throw new RedPacketForbiddenException();
+            throw new RedPacketException(EnumRedPacketStatusCodeError.forbidden);
         }
     }
 
@@ -318,22 +324,30 @@ export class RedPacketService implements IRedPacketService {
         type: EnumMessagingLegacyMessageType
     ): void {
         if (type !== EnumMessagingLegacyMessageType.redPacket) {
-            throw new RedPacketTypeInvalidException();
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.typeInvalid
+            );
         }
     }
 
     private assertAmount(totalCents: bigint, totalCount: number): void {
         if (totalCount < 1) {
-            throw new RedPacketAmountInvalidException();
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.amountInvalid
+            );
         }
 
         const count = BigInt(totalCount);
         if (totalCents < RedPacketMinAmountInCents * count) {
-            throw new RedPacketAmountInvalidException();
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.amountInvalid
+            );
         }
 
         if (totalCents > RedPacketMaxAmountPerPacketInCents * count) {
-            throw new RedPacketAmountInvalidException();
+            throw new RedPacketException(
+                EnumRedPacketStatusCodeError.amountInvalid
+            );
         }
     }
 
@@ -350,7 +364,7 @@ export class RedPacketService implements IRedPacketService {
             return this.splitRandomAmounts(totalCents, totalCount);
         }
 
-        throw new RedPacketTypeInvalidException();
+        throw new RedPacketException(EnumRedPacketStatusCodeError.typeInvalid);
     }
 
     private splitNormalAmounts(totalCents: bigint, totalCount: number): bigint[] {

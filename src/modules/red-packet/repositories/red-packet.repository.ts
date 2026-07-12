@@ -1,4 +1,5 @@
 import { RedisClientCachedProvider } from '@common/redis/constants/redis.constant';
+import { DatabaseUtil } from '@common/database/utils/database.util';
 import { DatabaseService } from '@common/database/services/database.service';
 import {
     EnumBalanceLogType,
@@ -27,7 +28,6 @@ import {
 import KeyvRedis from '@keyv/redis';
 import { Inject, Injectable } from '@nestjs/common';
 import { Keyv } from 'keyv';
-import { validate as uuidValidate } from 'uuid';
 
 interface IRedPacketRedisCommandClient {
     sendCommand<T = unknown>(args: readonly string[]): Promise<T>;
@@ -37,6 +37,7 @@ interface IRedPacketRedisCommandClient {
 export class RedPacketRepository {
     constructor(
         private readonly databaseService: DatabaseService,
+        private readonly databaseUtil: DatabaseUtil,
         @Inject(RedisClientCachedProvider)
         private readonly redisKeyv: Keyv<unknown>
     ) {}
@@ -102,52 +103,62 @@ export class RedPacketRepository {
     async createRedPacketWithBalance(
         payload: IRedPacketCreatePayload
     ): Promise<IRedPacketRecord | null> {
-        return this.databaseService.$transaction(async tx => {
-            const deducted = await tx.userBalance.updateMany({
-                where: {
-                    userId: payload.senderId,
-                    balance: {
-                        gte: payload.totalAmount,
-                    },
-                },
-                data: {
-                    balance: {
-                        decrement: payload.totalAmount,
-                    },
-                },
-            });
-            if (deducted.count !== 1) {
-                return null;
-            }
+        return this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const deducted = await tx.userBalance.updateMany({
+                        where: {
+                            userId: payload.senderId,
+                            balance: {
+                                gte: payload.totalAmount,
+                            },
+                        },
+                        data: {
+                            balance: {
+                                decrement: payload.totalAmount,
+                            },
+                        },
+                    });
+                    if (deducted.count !== 1) {
+                        return null;
+                    }
 
-            const redPacket = await tx.redPacket.create({
-                data: {
-                    id: payload.id,
-                    senderId: payload.senderId,
-                    conversationId: payload.conversationId,
-                    wrapperText: payload.wrapperText,
-                    type: payload.type,
-                    totalAmount: payload.totalAmount,
-                    totalCount: payload.totalCount,
-                    remainingAmount: payload.totalAmount,
-                    remainingCount: payload.totalCount,
-                    status: EnumRedPacketStatus.unclaimed,
-                    expireAt: payload.expireAt,
-                },
-                select: this.redPacketSelect(),
-            });
+                    const redPacket = await tx.redPacket.create({
+                        data: {
+                            id: payload.id,
+                            senderId: payload.senderId,
+                            conversationId: payload.conversationId,
+                            wrapperText: payload.wrapperText,
+                            type: payload.type,
+                            totalAmount: payload.totalAmount,
+                            totalCount: payload.totalCount,
+                            remainingAmount: payload.totalAmount,
+                            remainingCount: payload.totalCount,
+                            status: EnumRedPacketStatus.unclaimed,
+                            expireAt: payload.expireAt,
+                        },
+                        select: this.redPacketSelect(),
+                    });
 
-            await tx.balanceLog.create({
-                data: {
-                    userId: payload.senderId,
-                    amount: new Prisma.Decimal(0).minus(payload.totalAmount),
-                    type: EnumBalanceLogType.sendRedPacket,
-                    relatedId: payload.id,
-                },
-            });
+                    await tx.balanceLog.create({
+                        data: {
+                            userId: payload.senderId,
+                            amount: new Prisma.Decimal(0).minus(
+                                payload.totalAmount
+                            ),
+                            type: EnumBalanceLogType.sendRedPacket,
+                            relatedId: payload.id,
+                        },
+                    });
 
-            return redPacket;
-        });
+                    return redPacket;
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async initializeRedis(
@@ -236,98 +247,109 @@ export class RedPacketRepository {
         receiverId: string,
         amount: Prisma.Decimal
     ): Promise<IRedPacketReceivePersistResult> {
-        return this.databaseService.$transaction(async tx => {
-            const redPacket = await tx.redPacket.findUnique({
-                where: {
-                    id: redPacketId,
-                },
-                select: this.redPacketSelect(),
-            });
-            if (!redPacket || redPacket.status !== EnumRedPacketStatus.unclaimed) {
-                return {
-                    ok: false,
-                    claimed: false,
-                };
-            }
+        return this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const redPacket = await tx.redPacket.findUnique({
+                        where: {
+                            id: redPacketId,
+                        },
+                        select: this.redPacketSelect(),
+                    });
+                    if (
+                        !redPacket ||
+                        redPacket.status !== EnumRedPacketStatus.unclaimed
+                    ) {
+                        return {
+                            ok: false,
+                            claimed: false,
+                        };
+                    }
 
-            const now = new Date();
-            if (
-                redPacket.expireAt <= now ||
-                redPacket.remainingCount <= 0 ||
-                redPacket.remainingAmount.comparedTo(amount) < 0
-            ) {
-                return {
-                    ok: false,
-                    claimed: false,
-                };
-            }
+                    const now = new Date();
+                    if (
+                        redPacket.expireAt <= now ||
+                        redPacket.remainingCount <= 0 ||
+                        redPacket.remainingAmount.comparedTo(amount) < 0
+                    ) {
+                        return {
+                            ok: false,
+                            claimed: false,
+                        };
+                    }
 
-            const nextRemainingCount = redPacket.remainingCount - 1;
-            const updated = await tx.redPacket.updateMany({
-                where: {
-                    id: redPacketId,
-                    status: EnumRedPacketStatus.unclaimed,
-                    remainingCount: redPacket.remainingCount,
-                    remainingAmount: {
-                        gte: amount,
-                    },
-                },
-                data: {
-                    remainingAmount: {
-                        decrement: amount,
-                    },
-                    remainingCount: {
-                        decrement: 1,
-                    },
-                    ...(nextRemainingCount === 0
-                        ? {
-                              status: EnumRedPacketStatus.claimed,
-                          }
-                        : {}),
-                },
-            });
-            if (updated.count !== 1) {
-                return {
-                    ok: false,
-                    claimed: false,
-                };
-            }
+                    const nextRemainingCount = redPacket.remainingCount - 1;
+                    const updated = await tx.redPacket.updateMany({
+                        where: {
+                            id: redPacketId,
+                            status: EnumRedPacketStatus.unclaimed,
+                            remainingCount: redPacket.remainingCount,
+                            remainingAmount: {
+                                gte: amount,
+                            },
+                        },
+                        data: {
+                            remainingAmount: {
+                                decrement: amount,
+                            },
+                            remainingCount: {
+                                decrement: 1,
+                            },
+                            ...(nextRemainingCount === 0
+                                ? {
+                                      status: EnumRedPacketStatus.claimed,
+                                  }
+                                : {}),
+                        },
+                    });
+                    if (updated.count !== 1) {
+                        return {
+                            ok: false,
+                            claimed: false,
+                        };
+                    }
 
-            await tx.redPacketReceive.create({
-                data: {
-                    redPacketId,
-                    receiverId,
-                    amount,
-                },
-            });
-            await tx.userBalance.upsert({
-                where: {
-                    userId: receiverId,
-                },
-                create: {
-                    userId: receiverId,
-                    balance: amount,
-                },
-                update: {
-                    balance: {
-                        increment: amount,
-                    },
-                },
-            });
-            await tx.balanceLog.create({
-                data: {
-                    userId: receiverId,
-                    amount,
-                    type: EnumBalanceLogType.receiveRedPacket,
-                    relatedId: redPacketId,
-                },
-            });
+                    await tx.redPacketReceive.create({
+                        data: {
+                            redPacketId,
+                            receiverId,
+                            amount,
+                        },
+                    });
+                    await tx.userBalance.upsert({
+                        where: {
+                            userId: receiverId,
+                        },
+                        create: {
+                            userId: receiverId,
+                            balance: amount,
+                        },
+                        update: {
+                            balance: {
+                                increment: amount,
+                            },
+                        },
+                    });
+                    await tx.balanceLog.create({
+                        data: {
+                            userId: receiverId,
+                            amount,
+                            type: EnumBalanceLogType.receiveRedPacket,
+                            relatedId: redPacketId,
+                        },
+                    });
 
-            return {
-                ok: true,
-                claimed: nextRemainingCount === 0,
-            };
-        });
+                    return {
+                        ok: true,
+                        claimed: nextRemainingCount === 0,
+                    };
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async findDetail(
@@ -396,88 +418,104 @@ export class RedPacketRepository {
     }
 
     async expireRedPacket(redPacketId: bigint): Promise<boolean> {
-        return this.databaseService.$transaction(async tx => {
-            const locked = await tx.redPacket.updateMany({
-                where: {
-                    id: redPacketId,
-                    status: EnumRedPacketStatus.unclaimed,
-                    expireAt: {
-                        lte: new Date(),
-                    },
-                },
-                data: {
-                    status: EnumRedPacketStatus.refunding,
-                },
-            });
-            if (locked.count !== 1) {
-                return false;
-            }
+        return this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const locked = await tx.redPacket.updateMany({
+                        where: {
+                            id: redPacketId,
+                            status: EnumRedPacketStatus.unclaimed,
+                            expireAt: {
+                                lte: new Date(),
+                            },
+                        },
+                        data: {
+                            status: EnumRedPacketStatus.refunding,
+                        },
+                    });
+                    if (locked.count !== 1) {
+                        return false;
+                    }
 
-            const redPacket = await tx.redPacket.findUnique({
-                where: {
-                    id: redPacketId,
-                },
-                select: this.redPacketSelect(),
-            });
-            if (!redPacket) {
-                return false;
-            }
+                    const redPacket = await tx.redPacket.findUnique({
+                        where: {
+                            id: redPacketId,
+                        },
+                        select: this.redPacketSelect(),
+                    });
+                    if (!redPacket) {
+                        return false;
+                    }
 
-            await this.refundRemaining(tx, redPacket);
-            await tx.redPacket.update({
-                where: {
-                    id: redPacketId,
-                },
-                data: {
-                    status: EnumRedPacketStatus.expired,
-                    remainingAmount: new Prisma.Decimal(0),
-                    remainingCount: 0,
-                },
-            });
+                    await this.refundRemaining(tx, redPacket);
+                    await tx.redPacket.update({
+                        where: {
+                            id: redPacketId,
+                        },
+                        data: {
+                            status: EnumRedPacketStatus.expired,
+                            remainingAmount: new Prisma.Decimal(0),
+                            remainingCount: 0,
+                        },
+                    });
 
-            return true;
-        });
+                    return true;
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async compensateCreatedRedPacket(redPacketId: bigint): Promise<boolean> {
-        return this.databaseService.$transaction(async tx => {
-            const locked = await tx.redPacket.updateMany({
-                where: {
-                    id: redPacketId,
-                    status: EnumRedPacketStatus.unclaimed,
-                },
-                data: {
-                    status: EnumRedPacketStatus.refunding,
-                },
-            });
-            if (locked.count !== 1) {
-                return false;
-            }
+        return this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const locked = await tx.redPacket.updateMany({
+                        where: {
+                            id: redPacketId,
+                            status: EnumRedPacketStatus.unclaimed,
+                        },
+                        data: {
+                            status: EnumRedPacketStatus.refunding,
+                        },
+                    });
+                    if (locked.count !== 1) {
+                        return false;
+                    }
 
-            const redPacket = await tx.redPacket.findUnique({
-                where: {
-                    id: redPacketId,
-                },
-                select: this.redPacketSelect(),
-            });
-            if (!redPacket) {
-                return false;
-            }
+                    const redPacket = await tx.redPacket.findUnique({
+                        where: {
+                            id: redPacketId,
+                        },
+                        select: this.redPacketSelect(),
+                    });
+                    if (!redPacket) {
+                        return false;
+                    }
 
-            await this.refundRemaining(tx, redPacket);
-            await tx.redPacket.update({
-                where: {
-                    id: redPacketId,
-                },
-                data: {
-                    status: EnumRedPacketStatus.expired,
-                    remainingAmount: new Prisma.Decimal(0),
-                    remainingCount: 0,
-                },
-            });
+                    await this.refundRemaining(tx, redPacket);
+                    await tx.redPacket.update({
+                        where: {
+                            id: redPacketId,
+                        },
+                        data: {
+                            status: EnumRedPacketStatus.expired,
+                            remainingAmount: new Prisma.Decimal(0),
+                            remainingCount: 0,
+                        },
+                    });
 
-            return true;
-        });
+                    return true;
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     private async refundRemaining(
@@ -567,7 +605,7 @@ export class RedPacketRepository {
                 },
             },
         ];
-        if (uuidValidate(normalized)) {
+        if (this.isUuid(normalized)) {
             or.push({
                 id: normalized,
             });
@@ -589,6 +627,12 @@ export class RedPacketRepository {
         }
 
         return BigInt(identifier);
+    }
+
+    private isUuid(value: string): boolean {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            value
+        );
     }
 
     private userSelect(): Prisma.UserSelect {

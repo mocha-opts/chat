@@ -191,7 +191,7 @@ Classes that define the shape of data sent and received via API endpoints, ensur
 Type-safe enumerations for status codes, types, or other fixed sets of values relevant to the module's domain.
 
 ### Exceptions
-Dedicated exception classes, one per error, each extending `AppBaseException`. Named `<module>.<kebab-error>.exception.ts` (e.g., `user.not-found.exception.ts`).
+Stable modules may use dedicated exception classes, one per error, each extending `AppBaseException`. Named `<module>.<kebab-error>.exception.ts` (e.g., `user.not-found.exception.ts`). Migrated or high-churn modules should prefer one module-level registry file named `<module>.exception.ts`, backed by the module status-code enum and a local HTTP status map. The IM-adjacent modules `messaging`, `red-packet`, `contact`, and `conversation` use this registry pattern.
 
 ### Factories
 Factory classes or functions for creating instances of complex objects or aggregating dependencies.
@@ -262,7 +262,6 @@ Below are explanations for the root folders and files outside `src/` (excluding 
 - **pnpm-lock.yaml**: pnpm lockfile ensuring deterministic dependency installation.
 - **pnpm-workspace.yaml**: pnpm workspace configuration for monorepo support.
 - **tsconfig.json**: TypeScript configuration file, specifying compiler options and project structure.
-
 
 
 

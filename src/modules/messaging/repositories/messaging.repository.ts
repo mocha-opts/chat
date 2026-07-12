@@ -1,3 +1,4 @@
+import { DatabaseUtil } from '@common/database/utils/database.util';
 import { DatabaseService } from '@common/database/services/database.service';
 import { KafkaTopics } from '@common/kafka/constants/kafka.topic.constant';
 import {
@@ -26,9 +27,22 @@ import {
 import { createMessagingUserIdentifierWhere } from '@modules/messaging/utils/messaging.identifier.util';
 import { Injectable } from '@nestjs/common';
 
+interface IMessagingOutboxRow {
+    id: bigint;
+    message_id: bigint;
+    topic: string;
+    message_key: string;
+    payload: Prisma.JsonValue;
+    status: EnumMessageOutboxStatus;
+    retry_count: number;
+}
+
 @Injectable()
 export class MessagingRepository {
-    constructor(private readonly databaseService: DatabaseService) {}
+    constructor(
+        private readonly databaseService: DatabaseService,
+        private readonly databaseUtil: DatabaseUtil
+    ) {}
 
     async findUserByIdentifier(
         identifier: string
@@ -158,67 +172,85 @@ export class MessagingRepository {
     async createMessageWithOutbox(
         payload: IMessagingCreateMessagePayload
     ): Promise<IMessagingCreateMessageResult> {
-        return this.databaseService.$transaction(async tx => {
-            const message = await tx.message.create({
-                data: {
-                    id: payload.messageId,
-                    senderId: payload.senderId,
-                    conversationId: payload.conversationId,
-                    conversationType: payload.conversationType,
-                    type: payload.messageType,
-                    content: payload.content,
-                    body: payload.body,
-                    replyId: payload.replyId,
-                    createdAt: new Date(payload.event.payload.createdAt),
-                },
-                select: this.messageSelect(),
-            });
+        return this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const message = await tx.message.create({
+                        data: {
+                            id: payload.messageId,
+                            senderId: payload.senderId,
+                            conversationId: payload.conversationId,
+                            conversationType: payload.conversationType,
+                            type: payload.messageType,
+                            content: payload.content,
+                            body: payload.body,
+                            replyId: payload.replyId,
+                            createdAt: new Date(payload.event.payload.createdAt),
+                        },
+                        select: this.messageSelect(),
+                    });
 
-            const outbox = await tx.messageOutbox.create({
-                data: {
-                    messageId: message.id,
-                    topic: KafkaTopics.imMessagePersist,
-                    messageKey: message.conversationId.toString(),
-                    payload: payload.event as unknown as Prisma.InputJsonValue,
-                    status: EnumMessageOutboxStatus.init,
-                    retryCount: 0,
-                    nextRetryAt: new Date(),
-                },
-                select: this.outboxSelect(),
-            });
+                    const outbox = await tx.messageOutbox.create({
+                        data: {
+                            messageId: message.id,
+                            topic: KafkaTopics.imMessagePersist,
+                            messageKey: message.conversationId.toString(),
+                            payload: payload.event as unknown as Prisma.InputJsonValue,
+                            status: EnumMessageOutboxStatus.init,
+                            retryCount: 0,
+                            nextRetryAt: new Date(),
+                        },
+                        select: this.outboxSelect(),
+                    });
 
-            return { message, outbox };
-        });
+                    return { message, outbox };
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async createMessageFromPersistPayload(
         payload: IMessagingCreateMessagePayload
     ): Promise<void> {
-        const existing = await this.databaseService.message.findUnique({
-            where: {
-                id: payload.messageId,
-            },
-            select: {
-                id: true,
-            },
-        });
-        if (existing) {
-            return;
-        }
+        await this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const existing = await tx.message.findUnique({
+                        where: {
+                            id: payload.messageId,
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+                    if (existing) {
+                        return;
+                    }
 
-        await this.databaseService.message.create({
-            data: {
-                id: payload.messageId,
-                senderId: payload.senderId,
-                conversationId: payload.conversationId,
-                conversationType: payload.conversationType,
-                type: payload.messageType,
-                content: payload.content,
-                body: payload.body,
-                replyId: payload.replyId,
-                createdAt: new Date(payload.event.payload.createdAt),
-            },
-        });
+                    await tx.message.create({
+                        data: {
+                            id: payload.messageId,
+                            senderId: payload.senderId,
+                            conversationId: payload.conversationId,
+                            conversationType: payload.conversationType,
+                            type: payload.messageType,
+                            content: payload.content,
+                            body: payload.body,
+                            replyId: payload.replyId,
+                            createdAt: new Date(payload.event.payload.createdAt),
+                        },
+                    });
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async markOutboxPending(outbox: IMessagingOutbox): Promise<IMessagingOutbox> {
@@ -265,43 +297,62 @@ export class MessagingRepository {
         });
     }
 
-    async findRetryableOutboxes(): Promise<IMessagingOutbox[]> {
+    async claimRetryableOutboxes(): Promise<IMessagingOutbox[]> {
         const pendingExpiredAt = new Date(
             Date.now() - MessagingOutboxPendingTimeoutInMs
         );
+        const now = new Date();
+        const nextRetryAt = new Date(
+            now.getTime() + MessagingOutboxPendingTimeoutInMs
+        );
+        const rows = await this.databaseService.$queryRaw<IMessagingOutboxRow[]>`
+            WITH candidates AS (
+                SELECT id
+                FROM message_outboxes
+                WHERE status IN (
+                    'init'::"EnumMessageOutboxStatus",
+                    'failed'::"EnumMessageOutboxStatus",
+                    'pending'::"EnumMessageOutboxStatus"
+                )
+                    AND retry_count < ${MessagingOutboxMaxRetryCount}
+                    AND (
+                        next_retry_at <= ${now}
+                        OR (
+                            status = 'pending'::"EnumMessageOutboxStatus"
+                            AND updated_at <= ${pendingExpiredAt}
+                        )
+                    )
+                ORDER BY created_at ASC
+                LIMIT ${MessagingOutboxRetryBatchSize}
+                FOR UPDATE SKIP LOCKED
+            )
+            UPDATE message_outboxes AS outbox
+            SET status = 'pending'::"EnumMessageOutboxStatus",
+                retry_count = outbox.retry_count + 1,
+                next_retry_at = ${nextRetryAt},
+                last_error = NULL,
+                updated_at = ${now}
+            FROM candidates
+            WHERE outbox.id = candidates.id
+            RETURNING
+                outbox.id,
+                outbox.message_id,
+                outbox.topic,
+                outbox.message_key,
+                outbox.payload,
+                outbox.status,
+                outbox.retry_count
+        `;
 
-        return this.databaseService.messageOutbox.findMany({
-            where: {
-                status: {
-                    in: [
-                        EnumMessageOutboxStatus.init,
-                        EnumMessageOutboxStatus.failed,
-                        EnumMessageOutboxStatus.pending,
-                    ],
-                },
-                retryCount: {
-                    lt: MessagingOutboxMaxRetryCount,
-                },
-                OR: [
-                    {
-                        nextRetryAt: {
-                            lte: new Date(),
-                        },
-                    },
-                    {
-                        status: EnumMessageOutboxStatus.pending,
-                        updatedAt: {
-                            lte: pendingExpiredAt,
-                        },
-                    },
-                ],
-            },
-            orderBy: {
-                createdAt: 'asc',
-            },
-            take: MessagingOutboxRetryBatchSize,
-            select: this.outboxSelect(),
-        });
+        return rows.map(row => ({
+            id: row.id,
+            messageId: row.message_id,
+            topic: row.topic,
+            messageKey: row.message_key,
+            payload: row.payload,
+            status: row.status,
+            retryCount: row.retry_count,
+        }));
     }
 
     async findMessageById(

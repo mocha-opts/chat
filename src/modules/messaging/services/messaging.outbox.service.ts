@@ -19,8 +19,13 @@ export class MessagingOutboxService {
         private readonly kafkaProducerService: KafkaProducerService
     ) {}
 
-    async publish(outbox: IMessagingOutbox): Promise<void> {
-        const pending = await this.messagingRepository.markOutboxPending(outbox);
+    async publish(
+        outbox: IMessagingOutbox,
+        options: { claimed?: boolean } = {}
+    ): Promise<void> {
+        const pending = options.claimed
+            ? outbox
+            : await this.messagingRepository.markOutboxPending(outbox);
 
         try {
             if (!this.isKafkaTopic(pending.topic)) {
@@ -56,13 +61,15 @@ export class MessagingOutboxService {
     }
 
     async retryUnsent(): Promise<void> {
-        const outboxes = await this.messagingRepository.findRetryableOutboxes();
+        const outboxes = await this.messagingRepository.claimRetryableOutboxes();
         for (const outbox of outboxes) {
-            await this.publish(outbox);
+            await this.publish(outbox, { claimed: true });
         }
     }
 
-    private isKafkaTopic(topic: string): topic is (typeof KafkaTopics)[keyof typeof KafkaTopics] {
+    private isKafkaTopic(
+        topic: string
+    ): topic is (typeof KafkaTopics)[keyof typeof KafkaTopics] {
         return Object.values(KafkaTopics).some(value => value === topic);
     }
 
@@ -95,7 +102,10 @@ export class MessagingOutboxService {
         };
 
         try {
-            await this.kafkaProducerService.emit(KafkaTopics.imDeadLetter, envelope);
+            await this.kafkaProducerService.emit(
+                KafkaTopics.imDeadLetter,
+                envelope
+            );
         } catch (err: unknown) {
             this.logger.error(
                 {

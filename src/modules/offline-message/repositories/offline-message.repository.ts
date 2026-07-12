@@ -6,6 +6,8 @@ import {
 } from '@generated/prisma-client';
 import {
     IOfflineMessageConversation,
+    IOfflineMessageEntityWithConversation,
+    IOfflineMessageListResult,
     IOfflineMessageUser,
 } from '@modules/offline-message/interfaces/offline-message.interface';
 import { createMessagingUserIdentifierWhere } from '@modules/messaging/utils/messaging.identifier.util';
@@ -41,62 +43,108 @@ export class OfflineMessageRepository {
 
     async findConversationsWithMessages(
         userId: string,
-        since: Date
-    ): Promise<IOfflineMessageConversation[]> {
-        return this.databaseService.conversationMember.findMany({
+        since: Date,
+        limit: number | null,
+        cursor: string | null
+    ): Promise<IOfflineMessageListResult> {
+        const take = limit ? limit + 1 : undefined;
+        const rows = await this.databaseService.message.findMany({
             where: {
-                userId,
-                status: EnumConversationMemberStatus.normal,
                 conversation: {
                     status: EnumConversationStatus.normal,
-                    messages: {
+                    members: {
                         some: {
-                            createdAt: {
-                                gte: since,
-                            },
+                            userId,
+                            status: EnumConversationMemberStatus.normal,
                         },
                     },
                 },
-            },
-            orderBy: {
-                conversation: {
-                    updatedAt: 'desc',
+                createdAt: {
+                    gte: since,
                 },
+                ...(cursor
+                    ? {
+                          id: {
+                              gt: BigInt(cursor),
+                          },
+                      }
+                    : {}),
             },
+            orderBy: [
+                {
+                    id: 'asc',
+                },
+            ],
+            take,
             select: {
+                id: true,
+                senderId: true,
+                conversationId: true,
+                conversationType: true,
+                type: true,
+                content: true,
+                body: true,
+                replyId: true,
+                createdAt: true,
+                sender: {
+                    select: this.senderSelect(),
+                },
                 conversation: {
                     select: {
                         id: true,
                         name: true,
                         type: true,
-                        messages: {
-                            where: {
-                                createdAt: {
-                                    gte: since,
-                                },
-                            },
-                            orderBy: {
-                                createdAt: 'asc',
-                            },
-                            select: {
-                                id: true,
-                                senderId: true,
-                                conversationId: true,
-                                conversationType: true,
-                                type: true,
-                                content: true,
-                                body: true,
-                                replyId: true,
-                                createdAt: true,
-                                sender: {
-                                    select: this.senderSelect(),
-                                },
-                            },
-                        },
                     },
                 },
             },
         });
+        const includedRows = limit ? rows.slice(0, limit) : rows;
+        const nextCursor =
+            limit && rows.length > limit
+                ? includedRows[includedRows.length - 1]?.id.toString() ?? null
+                : null;
+
+        return {
+            conversations: this.groupMessages(includedRows),
+            nextCursor,
+        };
+    }
+
+    private groupMessages(
+        rows: IOfflineMessageEntityWithConversation[]
+    ): IOfflineMessageConversation[] {
+        const grouped = new Map<bigint, IOfflineMessageConversation>();
+
+        for (const row of rows) {
+            const existing = grouped.get(row.conversation.id);
+            const message = {
+                id: row.id,
+                senderId: row.senderId,
+                conversationId: row.conversationId,
+                conversationType: row.conversationType,
+                type: row.type,
+                content: row.content,
+                body: row.body,
+                replyId: row.replyId,
+                createdAt: row.createdAt,
+                sender: row.sender,
+            };
+            if (existing) {
+                existing.conversation.messages.push(message);
+                continue;
+            }
+
+            grouped.set(row.conversation.id, {
+                conversation: {
+                    id: row.conversation.id,
+                    name: row.conversation.name,
+                    type: row.conversation.type,
+                    messages: [message],
+                },
+            });
+        }
+
+        return [...grouped.values()];
     }
 
     private senderSelect(): Prisma.UserSelect {

@@ -18,13 +18,8 @@ import {
     ConversationKickGroupResponseDto,
     ConversationSetAdminResponseDto,
 } from '@modules/conversation/dtos/response/conversation.legacy.response.dto';
-import { ConversationKickedAdminInvalidException } from '@modules/conversation/exceptions/conversation.kicked-admin-invalid.exception';
-import { ConversationKickedOwnerInvalidException } from '@modules/conversation/exceptions/conversation.kicked-owner-invalid.exception';
-import { ConversationMemberNotFoundException } from '@modules/conversation/exceptions/conversation.member-not-found.exception';
-import { ConversationNotFoundException } from '@modules/conversation/exceptions/conversation.not-found.exception';
-import { ConversationPermissionDeniedException } from '@modules/conversation/exceptions/conversation.permission-denied.exception';
-import { ConversationUserInactiveException } from '@modules/conversation/exceptions/conversation.user-inactive.exception';
-import { ConversationUserNotFoundException } from '@modules/conversation/exceptions/conversation.user-not-found.exception';
+import { EnumConversationStatusCodeError } from '@modules/conversation/enums/conversation.status-code.enum';
+import { ConversationException } from '@modules/conversation/exceptions/conversation.exception';
 import {
     IConversationEntity,
     IConversationMember,
@@ -163,20 +158,26 @@ export class ConversationService implements IConversationService {
             await this.conversationRepository.findMembersByUserIds(
                 conversationId,
                 users.map(user => user.id)
-            );
+        );
         if (targetMembers.length !== users.length) {
-            throw new ConversationMemberNotFoundException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.memberNotFound
+            );
         }
 
         for (const target of targetMembers) {
             if (target.role === EnumConversationMemberRole.owner) {
-                throw new ConversationKickedOwnerInvalidException();
+                throw new ConversationException(
+                    EnumConversationStatusCodeError.kickedOwnerInvalid
+                );
             }
             if (
                 operatorMember.role === EnumConversationMemberRole.admin &&
                 target.role === EnumConversationMemberRole.admin
             ) {
-                throw new ConversationKickedAdminInvalidException();
+                throw new ConversationException(
+                    EnumConversationStatusCodeError.kickedAdminInvalid
+                );
             }
         }
 
@@ -254,14 +255,18 @@ export class ConversationService implements IConversationService {
             operator.id
         );
         if (operatorMember.role !== EnumConversationMemberRole.owner) {
-            throw new ConversationPermissionDeniedException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.permissionDenied
+            );
         }
         const targetMember = await this.assertMember(
             conversationId,
             target.id
         );
         if (targetMember.role === EnumConversationMemberRole.owner) {
-            throw new ConversationPermissionDeniedException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.permissionDenied
+            );
         }
 
         try {
@@ -320,7 +325,9 @@ export class ConversationService implements IConversationService {
             await this.conversationRepository.findUserByIdentifier(identifier);
         this.assertUserAvailable(user);
         if (user.id !== authUserId) {
-            throw new ConversationPermissionDeniedException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.permissionDenied
+            );
         }
 
         return user;
@@ -370,7 +377,9 @@ export class ConversationService implements IConversationService {
                 conversationId
             );
         if (!conversation) {
-            throw new ConversationNotFoundException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.conversationNotFound
+            );
         }
 
         return conversation;
@@ -385,7 +394,9 @@ export class ConversationService implements IConversationService {
             userId
         );
         if (!member) {
-            throw new ConversationMemberNotFoundException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.memberNotFound
+            );
         }
 
         return member;
@@ -396,7 +407,9 @@ export class ConversationService implements IConversationService {
             member.role !== EnumConversationMemberRole.owner &&
             member.role !== EnumConversationMemberRole.admin
         ) {
-            throw new ConversationPermissionDeniedException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.permissionDenied
+            );
         }
     }
 
@@ -404,16 +417,22 @@ export class ConversationService implements IConversationService {
         user: IConversationUser | null
     ): asserts user is IConversationUser {
         if (!user) {
-            throw new ConversationUserNotFoundException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.userNotFound
+            );
         }
         if (user.status !== EnumUserStatus.active) {
-            throw new ConversationUserInactiveException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.userInactive
+            );
         }
     }
 
     private parseConversationId(identifier: string): bigint {
         if (!/^\d+$/.test(identifier)) {
-            throw new ConversationNotFoundException();
+            throw new ConversationException(
+                EnumConversationStatusCodeError.conversationNotFound
+            );
         }
 
         return BigInt(identifier);

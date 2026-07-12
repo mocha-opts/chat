@@ -1,3 +1,4 @@
+import { DatabaseUtil } from '@common/database/utils/database.util';
 import { DatabaseService } from '@common/database/services/database.service';
 import { Injectable } from '@nestjs/common';
 import {
@@ -17,7 +18,10 @@ import {
 
 @Injectable()
 export class ConversationRepository {
-    constructor(private readonly databaseService: DatabaseService) {}
+    constructor(
+        private readonly databaseService: DatabaseService,
+        private readonly databaseUtil: DatabaseUtil
+    ) {}
 
     async findUserByIdentifier(
         identifier: string
@@ -61,34 +65,44 @@ export class ConversationRepository {
         failedMemberIds: string[],
         groupName: string
     ): Promise<IConversationCreateGroupResult> {
-        const conversation = await this.databaseService.conversation.create({
-            data: {
-                name: groupName,
-                type: EnumConversationType.group,
-                status: EnumConversationStatus.normal,
-                members: {
-                    createMany: {
-                        data: [
-                            {
-                                userId: creator.id,
-                                role: EnumConversationMemberRole.owner,
-                                status: EnumConversationMemberStatus.normal,
+        const conversation = await this.databaseUtil.retrySerializableTransaction(
+            () =>
+                this.databaseService.$transaction(
+                    tx =>
+                        tx.conversation.create({
+                            data: {
+                                name: groupName,
+                                type: EnumConversationType.group,
+                                status: EnumConversationStatus.normal,
+                                members: {
+                                    createMany: {
+                                        data: [
+                                            {
+                                                userId: creator.id,
+                                                role: EnumConversationMemberRole.owner,
+                                                status: EnumConversationMemberStatus.normal,
+                                            },
+                                            ...members.map(member => ({
+                                                userId: member.id,
+                                                role: EnumConversationMemberRole.member,
+                                                status: EnumConversationMemberStatus.normal,
+                                            })),
+                                        ],
+                                    },
+                                },
                             },
-                            ...members.map(member => ({
-                                userId: member.id,
-                                role: EnumConversationMemberRole.member,
-                                status: EnumConversationMemberStatus.normal,
-                            })),
-                        ],
-                    },
-                },
-            },
-            select: {
-                id: true,
-                name: true,
-                type: true,
-            },
-        });
+                            select: {
+                                id: true,
+                                name: true,
+                                type: true,
+                            },
+                        }),
+                    {
+                        isolationLevel:
+                            Prisma.TransactionIsolationLevel.Serializable,
+                    }
+                )
+        );
 
         return { conversation, creator, members, failedMemberIds };
     }
@@ -195,33 +209,51 @@ export class ConversationRepository {
             return;
         }
 
-        await this.databaseService.conversationMember.createMany({
-            data: userIds.map(userId => ({
-                conversationId,
-                userId,
-                role: EnumConversationMemberRole.member,
-                status: EnumConversationMemberStatus.normal,
-            })),
-            skipDuplicates: true,
-        });
+        await this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                tx =>
+                    tx.conversationMember.createMany({
+                        data: userIds.map(userId => ({
+                            conversationId,
+                            userId,
+                            role: EnumConversationMemberRole.member,
+                            status: EnumConversationMemberStatus.normal,
+                        })),
+                        skipDuplicates: true,
+                    }),
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async removeMembers(
         conversationId: bigint,
         userIds: string[]
     ): Promise<void> {
-        await this.databaseService.conversationMember.updateMany({
-            where: {
-                conversationId,
-                userId: {
-                    in: userIds,
-                },
-                status: EnumConversationMemberStatus.normal,
-            },
-            data: {
-                status: EnumConversationMemberStatus.deleted,
-            },
-        });
+        await this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                tx =>
+                    tx.conversationMember.updateMany({
+                        where: {
+                            conversationId,
+                            userId: {
+                                in: userIds,
+                            },
+                            status: EnumConversationMemberStatus.normal,
+                        },
+                        data: {
+                            status: EnumConversationMemberStatus.deleted,
+                        },
+                    }),
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async updateMemberRole(
@@ -229,16 +261,25 @@ export class ConversationRepository {
         userId: string,
         role: EnumConversationMemberRole
     ): Promise<void> {
-        await this.databaseService.conversationMember.updateMany({
-            where: {
-                conversationId,
-                userId,
-                status: EnumConversationMemberStatus.normal,
-            },
-            data: {
-                role,
-            },
-        });
+        await this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                tx =>
+                    tx.conversationMember.updateMany({
+                        where: {
+                            conversationId,
+                            userId,
+                            status: EnumConversationMemberStatus.normal,
+                        },
+                        data: {
+                            role,
+                        },
+                    }),
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     private createUserIdentifierWhere(

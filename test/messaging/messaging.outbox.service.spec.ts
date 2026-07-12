@@ -21,7 +21,7 @@ interface IMessagingOutboxTestContext {
             | 'markOutboxPending'
             | 'markOutboxSent'
             | 'markOutboxFailed'
-            | 'findRetryableOutboxes'
+            | 'claimRetryableOutboxes'
         >
     >;
     kafkaProducerService: jest.Mocked<IKafkaProducerService>;
@@ -46,7 +46,7 @@ const createContext = (
         markOutboxPending: jest.fn().mockResolvedValue(pendingOutbox),
         markOutboxSent: jest.fn().mockResolvedValue(undefined),
         markOutboxFailed: jest.fn().mockResolvedValue(undefined),
-        findRetryableOutboxes: jest.fn().mockResolvedValue([]),
+        claimRetryableOutboxes: jest.fn().mockResolvedValue([]),
     };
     const kafkaProducerService = {
         emit: jest.fn().mockResolvedValue(undefined),
@@ -118,5 +118,18 @@ describe(MessagingOutboxService.name, () => {
             'temporary broker failure'
         );
         expect(context.kafkaProducerService.emit).toHaveBeenCalledTimes(1);
+    });
+
+    it('publishes claimed retry outboxes without marking them pending again', async () => {
+        const context = createContext(createOutbox(1));
+        context.repository.claimRetryableOutboxes.mockResolvedValueOnce([
+            createOutbox(1),
+        ]);
+
+        await context.service.retryUnsent();
+
+        expect(context.repository.markOutboxPending).not.toHaveBeenCalled();
+        expect(context.kafkaProducerService.emit).toHaveBeenCalledTimes(1);
+        expect(context.repository.markOutboxSent).toHaveBeenCalledWith(100n);
     });
 });

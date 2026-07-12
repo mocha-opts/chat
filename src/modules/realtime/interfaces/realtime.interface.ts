@@ -27,10 +27,21 @@ export interface IRealtimeRouteCache {
 export interface IRealtimePendingAck {
     ackId: string;
     userId: string;
+    nodeId: string;
     frame: IRealtimeServerFrame;
     retryCount: number;
-    lastSentAt: Date;
-    timer: NodeJS.Timeout | null;
+    lastSentAt: string;
+    dueAt: string;
+}
+
+export interface IRealtimePushPayload extends Record<string, unknown> {
+    userId: string;
+    targetNodeId: string;
+    originNodeId: string;
+    ackId: string;
+    type: EnumRealtimePushType;
+    businessId: string | null;
+    data: unknown;
 }
 
 export interface IRealtimeAuthenticateResult {

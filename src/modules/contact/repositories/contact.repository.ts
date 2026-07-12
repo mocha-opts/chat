@@ -1,3 +1,4 @@
+import { DatabaseUtil } from '@common/database/utils/database.util';
 import { DatabaseService } from '@common/database/services/database.service';
 import {
     IContactAcceptApplicationResult,
@@ -19,7 +20,10 @@ import {
 
 @Injectable()
 export class ContactRepository {
-    constructor(private readonly databaseService: DatabaseService) {}
+    constructor(
+        private readonly databaseService: DatabaseService,
+        private readonly databaseUtil: DatabaseUtil
+    ) {}
 
     async findUserByIdentifier(
         identifier: string
@@ -277,203 +281,220 @@ export class ContactRepository {
         senderId: string,
         now: Date
     ): Promise<IContactAcceptApplicationResult | null> {
-        return this.databaseService.$transaction(async tx => {
-            const application = await tx.friendApplication.findFirst({
-                where: {
-                    receiverId,
-                    senderId,
-                    status: {
-                        in: [
-                            EnumFriendApplicationStatus.unread,
-                            EnumFriendApplicationStatus.read,
-                        ],
-                    },
-                    OR: [
-                        {
-                            expiredAt: null,
-                        },
-                        {
-                            expiredAt: {
-                                gt: now,
+        return this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    const application = await tx.friendApplication.findFirst({
+                        where: {
+                            receiverId,
+                            senderId,
+                            status: {
+                                in: [
+                                    EnumFriendApplicationStatus.unread,
+                                    EnumFriendApplicationStatus.read,
+                                ],
                             },
-                        },
-                    ],
-                },
-                orderBy: {
-                    createdAt: 'desc',
-                },
-                select: {
-                    id: true,
-                },
-            });
-            if (!application) {
-                return null;
-            }
-
-            const applicant = await tx.user.findUnique({
-                where: {
-                    id: senderId,
-                    deletedAt: null,
-                },
-                select: this.userSelect(),
-            });
-            if (!applicant) {
-                return null;
-            }
-
-            await tx.friendApplication.update({
-                where: {
-                    id: application.id,
-                },
-                data: {
-                    status: EnumFriendApplicationStatus.accepted,
-                },
-            });
-            await tx.friend.upsert({
-                where: {
-                    userId_friendId: {
-                        userId: receiverId,
-                        friendId: senderId,
-                    },
-                },
-                create: {
-                    userId: receiverId,
-                    friendId: senderId,
-                    status: EnumFriendStatus.normal,
-                },
-                update: {
-                    status: EnumFriendStatus.normal,
-                },
-            });
-            await tx.friend.upsert({
-                where: {
-                    userId_friendId: {
-                        userId: senderId,
-                        friendId: receiverId,
-                    },
-                },
-                create: {
-                    userId: senderId,
-                    friendId: receiverId,
-                    status: EnumFriendStatus.normal,
-                },
-                update: {
-                    status: EnumFriendStatus.normal,
-                },
-            });
-
-            const existingConversation = await this.findCommonSingleConversationTx(
-                tx,
-                receiverId,
-                senderId
-            );
-            if (existingConversation) {
-                return {
-                    applicant,
-                    conversationId: existingConversation.id,
-                };
-            }
-
-            const conversation = await tx.conversation.create({
-                data: {
-                    name: '',
-                    type: EnumConversationType.single,
-                    status: EnumConversationStatus.normal,
-                    members: {
-                        createMany: {
-                            data: [
+                            OR: [
                                 {
-                                    userId: receiverId,
-                                    role: EnumConversationMemberRole.member,
-                                    status: EnumConversationMemberStatus.normal,
+                                    expiredAt: null,
                                 },
                                 {
-                                    userId: senderId,
-                                    role: EnumConversationMemberRole.member,
-                                    status: EnumConversationMemberStatus.normal,
+                                    expiredAt: {
+                                        gt: now,
+                                    },
                                 },
                             ],
                         },
-                    },
-                },
-                select: {
-                    id: true,
-                },
-            });
+                        orderBy: {
+                            createdAt: 'desc',
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+                    if (!application) {
+                        return null;
+                    }
 
-            return {
-                applicant,
-                conversationId: conversation.id,
-            };
-        });
+                    const applicant = await tx.user.findUnique({
+                        where: {
+                            id: senderId,
+                            deletedAt: null,
+                        },
+                        select: this.userSelect(),
+                    });
+                    if (!applicant) {
+                        return null;
+                    }
+
+                    await tx.friendApplication.update({
+                        where: {
+                            id: application.id,
+                        },
+                        data: {
+                            status: EnumFriendApplicationStatus.accepted,
+                        },
+                    });
+                    await tx.friend.upsert({
+                        where: {
+                            userId_friendId: {
+                                userId: receiverId,
+                                friendId: senderId,
+                            },
+                        },
+                        create: {
+                            userId: receiverId,
+                            friendId: senderId,
+                            status: EnumFriendStatus.normal,
+                        },
+                        update: {
+                            status: EnumFriendStatus.normal,
+                        },
+                    });
+                    await tx.friend.upsert({
+                        where: {
+                            userId_friendId: {
+                                userId: senderId,
+                                friendId: receiverId,
+                            },
+                        },
+                        create: {
+                            userId: senderId,
+                            friendId: receiverId,
+                            status: EnumFriendStatus.normal,
+                        },
+                        update: {
+                            status: EnumFriendStatus.normal,
+                        },
+                    });
+
+                    const existingConversation =
+                        await this.findCommonSingleConversationTx(
+                            tx,
+                            receiverId,
+                            senderId
+                        );
+                    if (existingConversation) {
+                        return {
+                            applicant,
+                            conversationId: existingConversation.id,
+                        };
+                    }
+
+                    const conversation = await tx.conversation.create({
+                        data: {
+                            name: '',
+                            type: EnumConversationType.single,
+                            status: EnumConversationStatus.normal,
+                            members: {
+                                createMany: {
+                                    data: [
+                                        {
+                                            userId: receiverId,
+                                            role: EnumConversationMemberRole.member,
+                                            status: EnumConversationMemberStatus.normal,
+                                        },
+                                        {
+                                            userId: senderId,
+                                            role: EnumConversationMemberRole.member,
+                                            status: EnumConversationMemberStatus.normal,
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+
+                    return {
+                        applicant,
+                        conversationId: conversation.id,
+                    };
+                },
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async deleteFriend(userId: string, friendId: string): Promise<void> {
-        await this.databaseService.$transaction(async tx => {
-            await tx.friend.updateMany({
-                where: {
-                    OR: [
-                        { userId, friendId },
-                        { userId: friendId, friendId: userId },
-                    ],
-                },
-                data: {
-                    status: EnumFriendStatus.deleted,
-                },
-            });
-            const conversations = await tx.conversation.findMany({
-                where: {
-                    type: EnumConversationType.single,
-                    status: EnumConversationStatus.normal,
-                    AND: [
-                        {
-                            members: {
-                                some: {
-                                    userId,
-                                    status: EnumConversationMemberStatus.normal,
-                                },
-                            },
+        await this.databaseUtil.retrySerializableTransaction(() =>
+            this.databaseService.$transaction(
+                async tx => {
+                    await tx.friend.updateMany({
+                        where: {
+                            OR: [
+                                { userId, friendId },
+                                { userId: friendId, friendId: userId },
+                            ],
                         },
-                        {
-                            members: {
-                                some: {
-                                    userId: friendId,
-                                    status: EnumConversationMemberStatus.normal,
-                                },
-                            },
+                        data: {
+                            status: EnumFriendStatus.deleted,
                         },
-                    ],
-                },
-                select: {
-                    id: true,
-                },
-            });
-            const conversationIds = conversations.map(({ id }) => id);
-            if (conversationIds.length === 0) {
-                return;
-            }
+                    });
+                    const conversations = await tx.conversation.findMany({
+                        where: {
+                            type: EnumConversationType.single,
+                            status: EnumConversationStatus.normal,
+                            AND: [
+                                {
+                                    members: {
+                                        some: {
+                                            userId,
+                                            status: EnumConversationMemberStatus.normal,
+                                        },
+                                    },
+                                },
+                                {
+                                    members: {
+                                        some: {
+                                            userId: friendId,
+                                            status: EnumConversationMemberStatus.normal,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+                    const conversationIds = conversations.map(({ id }) => id);
+                    if (conversationIds.length === 0) {
+                        return;
+                    }
 
-            await tx.conversationMember.updateMany({
-                where: {
-                    conversationId: {
-                        in: conversationIds,
-                    },
+                    await tx.conversationMember.updateMany({
+                        where: {
+                            conversationId: {
+                                in: conversationIds,
+                            },
+                        },
+                        data: {
+                            status: EnumConversationMemberStatus.deleted,
+                        },
+                    });
+                    await tx.conversation.updateMany({
+                        where: {
+                            id: {
+                                in: conversationIds,
+                            },
+                        },
+                        data: {
+                            status: EnumConversationStatus.deleted,
+                        },
+                    });
                 },
-                data: {
-                    status: EnumConversationMemberStatus.deleted,
-                },
-            });
-            await tx.conversation.updateMany({
-                where: {
-                    id: {
-                        in: conversationIds,
-                    },
-                },
-                data: {
-                    status: EnumConversationStatus.deleted,
-                },
-            });
-        });
+                {
+                    isolationLevel:
+                        Prisma.TransactionIsolationLevel.Serializable,
+                }
+            )
+        );
     }
 
     async blockFriend(userId: string, friendId: string): Promise<number> {

@@ -19,14 +19,8 @@ import {
     EnumMessagingLegacyConversationType,
     EnumMessagingLegacyMessageType,
 } from '@modules/messaging/enums/messaging.legacy.enum';
-import { MessagingConversationNotFoundException } from '@modules/messaging/exceptions/messaging.conversation-not-found.exception';
-import { MessagingForbiddenException } from '@modules/messaging/exceptions/messaging.forbidden.exception';
-import { MessagingFriendNotFoundException } from '@modules/messaging/exceptions/messaging.friend-not-found.exception';
-import { MessagingMemberNotFoundException } from '@modules/messaging/exceptions/messaging.member-not-found.exception';
-import { MessagingReceiverInvalidException } from '@modules/messaging/exceptions/messaging.receiver-invalid.exception';
-import { MessagingTypeInvalidException } from '@modules/messaging/exceptions/messaging.type-invalid.exception';
-import { MessagingUserInactiveException } from '@modules/messaging/exceptions/messaging.user-inactive.exception';
-import { MessagingUserNotFoundException } from '@modules/messaging/exceptions/messaging.user-not-found.exception';
+import { EnumMessagingStatusCodeError } from '@modules/messaging/enums/messaging.status-code.enum';
+import { MessagingException } from '@modules/messaging/exceptions/messaging.exception';
 import {
     IMessagingMessagePersistPayload,
     IMessagingRealtimeMessage,
@@ -163,11 +157,13 @@ export class MessagingService implements IMessagingService {
             body.sendUserId
         );
         if (!sender) {
-            throw new MessagingUserNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.userNotFound
+            );
         }
         this.assertActiveUser(sender);
         if (sender.id !== authUserId) {
-            throw new MessagingForbiddenException();
+            throw new MessagingException(EnumMessagingStatusCodeError.forbidden);
         }
 
         const conversationId = BigInt(body.sessionId);
@@ -175,7 +171,9 @@ export class MessagingService implements IMessagingService {
             conversationId
         );
         if (!conversation) {
-            throw new MessagingConversationNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.conversationNotFound
+            );
         }
 
         if (
@@ -192,7 +190,9 @@ export class MessagingService implements IMessagingService {
             return this.resolveGroupSend(sender, conversationId, conversation);
         }
 
-        throw new MessagingConversationNotFoundException();
+        throw new MessagingException(
+            EnumMessagingStatusCodeError.conversationNotFound
+        );
     }
 
     private async resolveSingleSend(
@@ -201,14 +201,18 @@ export class MessagingService implements IMessagingService {
         body: MessagingSendMessageRequestDto
     ): Promise<IMessagingResolvedSend> {
         if (!body.receiveUserId) {
-            throw new MessagingReceiverInvalidException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.receiverInvalid
+            );
         }
 
         const receiver = await this.messagingRepository.findUserByIdentifier(
             body.receiveUserId
         );
         if (!receiver) {
-            throw new MessagingUserNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.userNotFound
+            );
         }
         this.assertActiveUser(receiver);
 
@@ -217,7 +221,9 @@ export class MessagingService implements IMessagingService {
             receiver.id
         );
         if (!friend) {
-            throw new MessagingFriendNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.friendNotFound
+            );
         }
 
         const conversation =
@@ -227,7 +233,9 @@ export class MessagingService implements IMessagingService {
                 receiver.id
             );
         if (!conversation) {
-            throw new MessagingConversationNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.conversationNotFound
+            );
         }
 
         return {
@@ -247,7 +255,9 @@ export class MessagingService implements IMessagingService {
             sender.id
         );
         if (!senderMember) {
-            throw new MessagingMemberNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.memberNotFound
+            );
         }
 
         const members =
@@ -258,7 +268,9 @@ export class MessagingService implements IMessagingService {
             .filter(member => member.userId !== sender.id)
             .map(member => member.user);
         if (receiverUsers.length === 0) {
-            throw new MessagingReceiverInvalidException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.receiverInvalid
+            );
         }
 
         return {
@@ -270,7 +282,9 @@ export class MessagingService implements IMessagingService {
 
     private assertActiveUser(user: IMessagingUser): void {
         if (user.status !== EnumUserStatus.active) {
-            throw new MessagingUserInactiveException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.userInactive
+            );
         }
     }
 
@@ -355,7 +369,9 @@ export class MessagingService implements IMessagingService {
         }
 
         if (!/^\d+$/.test(replyId)) {
-            throw new MessagingTypeInvalidException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.typeInvalid
+            );
         }
 
         return BigInt(replyId);

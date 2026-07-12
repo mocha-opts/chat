@@ -1,14 +1,15 @@
 import { IResponseReturn } from '@common/response/interfaces/response.interface';
 import { EnumConversationType, EnumUserStatus } from '@generated/prisma-client';
-import { MessagingDateFormat, MessagingDefaultGroupAvatar } from '@modules/messaging/constants/messaging.constant';
+import {
+    MessagingDateFormat,
+    MessagingDefaultGroupAvatar,
+} from '@modules/messaging/constants/messaging.constant';
 import {
     EnumMessagingLegacyConversationType,
     EnumMessagingLegacyMessageType,
 } from '@modules/messaging/enums/messaging.legacy.enum';
-import { MessagingForbiddenException } from '@modules/messaging/exceptions/messaging.forbidden.exception';
-import { MessagingTypeInvalidException } from '@modules/messaging/exceptions/messaging.type-invalid.exception';
-import { MessagingUserInactiveException } from '@modules/messaging/exceptions/messaging.user-inactive.exception';
-import { MessagingUserNotFoundException } from '@modules/messaging/exceptions/messaging.user-not-found.exception';
+import { EnumMessagingStatusCodeError } from '@modules/messaging/enums/messaging.status-code.enum';
+import { MessagingException } from '@modules/messaging/exceptions/messaging.exception';
 import { OfflineMessageListRequestDto } from '@modules/offline-message/dtos/request/offline-message.list.request.dto';
 import {
     OfflineMessageBodyResponseDto,
@@ -40,25 +41,33 @@ export class OfflineMessageService implements IOfflineMessageService {
             query.userId
         );
         if (!user) {
-            throw new MessagingUserNotFoundException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.userNotFound
+            );
         }
         if (user.id !== authUserId) {
-            throw new MessagingForbiddenException();
+            throw new MessagingException(EnumMessagingStatusCodeError.forbidden);
         }
         if (user.status !== EnumUserStatus.active) {
-            throw new MessagingUserInactiveException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.userInactive
+            );
         }
 
         const since = this.parseLegacyTime(query.time);
-        const conversations =
+        const limit = query.limit ?? (query.cursor ? 200 : null);
+        const result =
             await this.offlineMessageRepository.findConversationsWithMessages(
                 user.id,
-                since
+                since,
+                limit,
+                query.cursor ?? null
             );
 
         return {
             data: {
-                offlineMsg: conversations.map(conversation =>
+                nextCursor: result.nextCursor,
+                offlineMsg: result.conversations.map(conversation =>
                     this.mapConversation(conversation)
                 ),
             },
@@ -68,7 +77,9 @@ export class OfflineMessageService implements IOfflineMessageService {
     private parseLegacyTime(time: string): Date {
         const parsed = DateTime.fromFormat(time, MessagingDateFormat);
         if (!parsed.isValid) {
-            throw new MessagingTypeInvalidException();
+            throw new MessagingException(
+                EnumMessagingStatusCodeError.typeInvalid
+            );
         }
 
         return parsed.toJSDate();

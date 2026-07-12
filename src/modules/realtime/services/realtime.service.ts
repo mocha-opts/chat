@@ -1,8 +1,12 @@
+import { KafkaTopics } from '@common/kafka/constants/kafka.topic.constant';
+import { IKafkaEventEnvelope } from '@common/kafka/interfaces/kafka.interface';
+import { KafkaProducerService } from '@common/kafka/services/kafka.producer.service';
 import { AuthJwtAccessTokenInvalidException } from '@modules/auth/exceptions/auth.jwt-access-token-invalid.exception';
 import { AuthService } from '@modules/auth/services/auth.service';
 import { AuthUtil } from '@modules/auth/utils/auth.util';
 import {
     RealtimeAckMaxRetryCount,
+    RealtimeAckScanIntervalInMs,
     RealtimeAckTimeoutInMs,
 } from '@modules/realtime/constants/realtime.constant';
 import { EnumRealtimeClientMessageType } from '@modules/realtime/enums/realtime.client-message-type.enum';
@@ -11,6 +15,7 @@ import {
     IRealtimeAuthenticateResult,
     IRealtimeClientFrame,
     IRealtimePendingAck,
+    IRealtimePushPayload,
     IRealtimeRouteCache,
     IRealtimeServerFrame,
     IRealtimeService,
@@ -20,6 +25,7 @@ import {
     Injectable,
     Logger,
     OnModuleDestroy,
+    OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
@@ -28,19 +34,19 @@ import { hostname } from 'os';
 import { RawData, WebSocket } from 'ws';
 
 @Injectable()
-export class RealtimeService implements IRealtimeService, OnModuleDestroy {
+export class RealtimeService
+    implements IRealtimeService, OnModuleInit, OnModuleDestroy
+{
     private readonly logger = new Logger(RealtimeService.name);
     private readonly connectionsByUserId = new Map<string, WebSocket>();
     private readonly usersByClient = new Map<WebSocket, string>();
-    private readonly pendingAckMessages = new Map<
-        string,
-        IRealtimePendingAck
-    >();
     private readonly jwtPrefix: string;
     private readonly nodeId = `${hostname()}:${process.pid}`;
+    private ackRetryInterval: NodeJS.Timeout | null = null;
 
     constructor(
         private readonly realtimeRepository: RealtimeRepository,
+        private readonly kafkaProducerService: KafkaProducerService,
         private readonly authUtil: AuthUtil,
         private readonly authService: AuthService,
         configService: ConfigService
@@ -48,13 +54,24 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
         this.jwtPrefix = configService.get<string>('auth.jwt.prefix')!;
     }
 
-    onModuleDestroy(): void {
-        for (const pending of this.pendingAckMessages.values()) {
-            this.clearPendingTimer(pending);
+    onModuleInit(): void {
+        this.ackRetryInterval = setInterval(() => {
+            void this.retryDuePendingAcks();
+        }, RealtimeAckScanIntervalInMs);
+        this.ackRetryInterval.unref();
+    }
+
+    async onModuleDestroy(): Promise<void> {
+        if (this.ackRetryInterval) {
+            clearInterval(this.ackRetryInterval);
+            this.ackRetryInterval = null;
         }
-        this.pendingAckMessages.clear();
         this.connectionsByUserId.clear();
         this.usersByClient.clear();
+    }
+
+    getNodeId(): string {
+        return this.nodeId;
     }
 
     async handleConnection(
@@ -90,7 +107,7 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
 
         switch (frame.type) {
             case EnumRealtimeClientMessageType.ack:
-                this.ack(frame);
+                await this.ack(frame);
                 return;
             case EnumRealtimeClientMessageType.logOut:
                 await this.handleLogout(client);
@@ -115,32 +132,56 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
         data: unknown,
         businessId: string | null
     ): Promise<boolean> {
-        const client = this.connectionsByUserId.get(userId);
-        if (!client || client.readyState !== WebSocket.OPEN) {
-            return false;
-        }
-
         const ackId = this.buildAckId(type, userId, businessId, data);
         const frame: IRealtimeServerFrame = {
             type,
             msgUuid: ackId,
             data,
         };
+        const sentLocal = await this.sendLocalWithPending(userId, frame, ackId);
+        if (sentLocal) {
+            return true;
+        }
 
-        if (!this.sendFrame(client, frame)) {
+        const route = await this.realtimeRepository.getRoute(userId);
+        if (!route) {
             return false;
         }
 
-        this.addPending({
+        if (route.nodeId === this.nodeId) {
+            await this.realtimeRepository.deleteRoute(userId);
+            return false;
+        }
+
+        return this.publishRemotePush({
             ackId,
             userId,
-            frame,
-            retryCount: 0,
-            lastSentAt: new Date(),
-            timer: null,
+            targetNodeId: route.nodeId,
+            originNodeId: this.nodeId,
+            type,
+            businessId,
+            data,
         });
+    }
 
-        return true;
+    async pushFromKafka(payload: IRealtimePushPayload): Promise<void> {
+        if (payload.targetNodeId !== this.nodeId) {
+            return;
+        }
+
+        const frame: IRealtimeServerFrame = {
+            type: payload.type,
+            msgUuid: payload.ackId,
+            data: payload.data,
+        };
+        const sent = await this.sendLocalWithPending(
+            payload.userId,
+            frame,
+            payload.ackId
+        );
+        if (!sent) {
+            await this.realtimeRepository.deleteRoute(payload.userId);
+        }
     }
 
     async pushMessage(
@@ -226,7 +267,6 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
         if (!isValidToken) {
             throw new AuthJwtAccessTokenInvalidException();
         }
-
         const payload = await this.authService.validateJwtAccessStrategy({
             ...decoded,
             sub: subject,
@@ -292,19 +332,14 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
         return Buffer.from(raw).toString('utf8');
     }
 
-    private ack(frame: IRealtimeClientFrame): void {
-        const ackId = frame.msgUuid ?? this.extractStringField(frame.data, 'msgUuid');
+    private async ack(frame: IRealtimeClientFrame): Promise<void> {
+        const ackId =
+            frame.msgUuid ?? this.extractStringField(frame.data, 'msgUuid');
         if (!ackId) {
             return;
         }
 
-        const pending = this.pendingAckMessages.get(ackId);
-        if (!pending) {
-            return;
-        }
-
-        this.clearPendingTimer(pending);
-        this.pendingAckMessages.delete(ackId);
+        await this.realtimeRepository.deletePendingAck(ackId);
     }
 
     private async handleLogout(client: WebSocket): Promise<void> {
@@ -358,7 +393,7 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
         }
 
         this.usersByClient.delete(client);
-        this.removePendingByUser(userId);
+        await this.realtimeRepository.deletePendingAcksByUser(userId);
 
         if (removeRoute) {
             await this.realtimeRepository.deleteRoute(userId);
@@ -387,35 +422,55 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
         return true;
     }
 
-    private addPending(pending: IRealtimePendingAck): void {
-        const existing = this.pendingAckMessages.get(pending.ackId);
-        if (existing) {
-            this.clearPendingTimer(existing);
+    private async sendLocalWithPending(
+        userId: string,
+        frame: IRealtimeServerFrame,
+        ackId: string
+    ): Promise<boolean> {
+        const client = this.connectionsByUserId.get(userId);
+        if (!client || !this.sendFrame(client, frame)) {
+            return false;
         }
 
-        this.pendingAckMessages.set(pending.ackId, pending);
-        this.scheduleRetry(pending);
+        await this.savePendingAck({
+            ackId,
+            userId,
+            nodeId: this.nodeId,
+            frame,
+            retryCount: 0,
+            lastSentAt: new Date().toISOString(),
+            dueAt: new Date(Date.now() + RealtimeAckTimeoutInMs).toISOString(),
+        });
+
+        return true;
     }
 
-    private scheduleRetry(pending: IRealtimePendingAck): void {
-        pending.timer = setTimeout(() => {
-            this.retryPending(pending.ackId);
-        }, RealtimeAckTimeoutInMs);
-        pending.timer.unref();
+    private async savePendingAck(pending: IRealtimePendingAck): Promise<void> {
+        await this.realtimeRepository.savePendingAck(pending);
     }
 
-    private retryPending(ackId: string): void {
-        const pending = this.pendingAckMessages.get(ackId);
-        if (!pending) {
-            return;
+    private async retryDuePendingAcks(): Promise<void> {
+        try {
+            const pendingAcks =
+                await this.realtimeRepository.findDuePendingAcks(new Date());
+            for (const pending of pendingAcks) {
+                if (pending.nodeId !== this.nodeId) {
+                    continue;
+                }
+
+                await this.retryPendingAck(pending);
+            }
+        } catch (err: unknown) {
+            this.logger.error(err, 'Realtime ACK retry scan failed');
         }
+    }
 
+    private async retryPendingAck(pending: IRealtimePendingAck): Promise<void> {
         if (pending.retryCount >= RealtimeAckMaxRetryCount) {
-            this.clearPendingTimer(pending);
-            this.pendingAckMessages.delete(ackId);
+            await this.realtimeRepository.deletePendingAck(pending.ackId);
             this.logger.warn(
                 {
-                    ackId,
+                    ackId: pending.ackId,
                     userId: pending.userId,
                 },
                 'Realtime ACK retry limit reached'
@@ -423,35 +478,50 @@ export class RealtimeService implements IRealtimeService, OnModuleDestroy {
             return;
         }
 
-        pending.retryCount += 1;
-        pending.lastSentAt = new Date();
-
+        const nextPending: IRealtimePendingAck = {
+            ...pending,
+            retryCount: pending.retryCount + 1,
+            lastSentAt: new Date().toISOString(),
+            dueAt: new Date(Date.now() + RealtimeAckTimeoutInMs).toISOString(),
+        };
         const client = this.connectionsByUserId.get(pending.userId);
         if (client) {
             this.sendFrame(client, pending.frame);
         }
 
-        this.scheduleRetry(pending);
+        await this.realtimeRepository.savePendingAck(nextPending);
     }
 
-    private removePendingByUser(userId: string): void {
-        for (const [ackId, pending] of this.pendingAckMessages.entries()) {
-            if (pending.userId !== userId) {
-                continue;
-            }
+    private async publishRemotePush(
+        payload: IRealtimePushPayload
+    ): Promise<boolean> {
+        const envelope: IKafkaEventEnvelope<IRealtimePushPayload> = {
+            eventId: randomUUID(),
+            eventType: KafkaTopics.imRealtimePush,
+            occurredAt: new Date().toISOString(),
+            aggregateId: payload.userId,
+            causationId: payload.businessId,
+            correlationId: null,
+            payload,
+        };
 
-            this.clearPendingTimer(pending);
-            this.pendingAckMessages.delete(ackId);
+        try {
+            await this.kafkaProducerService.emit(
+                KafkaTopics.imRealtimePush,
+                envelope
+            );
+            return true;
+        } catch (err: unknown) {
+            this.logger.error(
+                {
+                    err,
+                    userId: payload.userId,
+                    targetNodeId: payload.targetNodeId,
+                },
+                'Realtime remote push publish failed'
+            );
+            return false;
         }
-    }
-
-    private clearPendingTimer(pending: IRealtimePendingAck): void {
-        if (!pending.timer) {
-            return;
-        }
-
-        clearTimeout(pending.timer);
-        pending.timer = null;
     }
 
     private buildAckId(

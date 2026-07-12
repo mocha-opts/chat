@@ -280,12 +280,18 @@ See [Request Validation][ref-doc-request-validation] for details.
 
 ## Usage
 
-Application code throws a dedicated exception class per error, each extending `AppBaseException`. Inline `HttpException` plus an object is no longer used. Each class fixes its own `statusCode`, `httpStatus`, `messagePath`, and `statusCodeKey`, and lives in the `exceptions/` folder of the module that owns its status-code enum.
+Application code throws an `AppBaseException` subclass. Inline `HttpException` plus an object is no longer used. Stable modules may keep one dedicated exception class per error. Migrated or high-churn modules should prefer one module-level exception registry that maps the module status-code enum to `statusCode`, `statusCodeKey`, `httpStatus`, and `messagePath`.
 
 ### Throwing an error
 
 ```typescript
 throw new UserNotFoundException();
+```
+
+For migrated modules that use a registry:
+
+```typescript
+throw new MessagingException(EnumMessagingStatusCodeError.userNotFound);
 ```
 
 ### Error with message interpolation
@@ -324,7 +330,7 @@ try {
 
 ### Defining a new exception
 
-Add a numeric status-code enum entry, then the class:
+Add a numeric status-code enum entry. For a stable low-churn module, add a dedicated class:
 
 ```typescript
 export class ExampleSomethingException extends AppBaseException {
@@ -335,6 +341,30 @@ export class ExampleSomethingException extends AppBaseException {
 
     constructor() {
         super('example.error.something');
+    }
+}
+```
+
+For migrated or high-churn modules, add the status-code enum entry and extend the module registry map instead:
+
+```typescript
+const ExampleExceptionHttpStatus = {
+    something: HttpStatus.BAD_REQUEST,
+} satisfies Record<keyof typeof EnumExampleStatusCodeError, HttpStatus>;
+
+export class ExampleException extends AppModuleException {
+    constructor(statusCode: EnumExampleStatusCodeError) {
+        const statusCodeKey = EnumExampleStatusCodeError[
+            statusCode
+        ] as keyof typeof EnumExampleStatusCodeError;
+
+        super({
+            module: 'example',
+            statusCode,
+            statusCodeKey,
+            httpStatus: ExampleExceptionHttpStatus[statusCodeKey],
+            messagePath: `example.error.${statusCodeKey}`,
+        });
     }
 }
 ```

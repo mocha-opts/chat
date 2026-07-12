@@ -35,6 +35,15 @@ export interface IOfflineMessageEntity {
     sender: IOfflineMessageSender;
 }
 
+export interface IOfflineMessageEntityWithConversation
+    extends IOfflineMessageEntity {
+    conversation: {
+        id: bigint;
+        name: string;
+        type: EnumConversationType;
+    };
+}
+
 export interface IOfflineMessageConversation {
     conversation: {
         id: bigint;
@@ -42,4 +51,9 @@ export interface IOfflineMessageConversation {
         type: EnumConversationType;
         messages: IOfflineMessageEntity[];
     };
+}
+
+export interface IOfflineMessageListResult {
+    conversations: IOfflineMessageConversation[];
+    nextCursor: string | null;
 }

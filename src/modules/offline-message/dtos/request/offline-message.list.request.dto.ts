@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose, Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import { Expose, Transform, Type } from 'class-transformer';
+import {
+    IsInt,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    Matches,
+    Max,
+    MaxLength,
+    Min,
+} from 'class-validator';
 
 export class OfflineMessageListRequestDto {
     @ApiProperty({
@@ -23,4 +32,29 @@ export class OfflineMessageListRequestDto {
     @IsNotEmpty()
     @Matches(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
     time: string;
+
+    @ApiProperty({
+        required: false,
+        minimum: 1,
+        maximum: 500,
+    })
+    @Expose()
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(500)
+    limit?: number;
+
+    @ApiProperty({
+        required: false,
+        example: '1000000000000000002',
+    })
+    @Expose()
+    @IsOptional()
+    @IsString()
+    @MaxLength(64)
+    @Matches(/^\d+$/)
+    @Transform(({ value }) => (value === undefined ? undefined : String(value).trim()))
+    cursor?: string;
 }

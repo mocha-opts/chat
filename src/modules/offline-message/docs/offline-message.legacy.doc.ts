@@ -27,6 +27,16 @@ export function OfflineMessageLegacyListDoc(): MethodDecorator {
                     required: true,
                     type: 'string',
                 },
+                {
+                    name: 'limit',
+                    required: false,
+                    type: 'number',
+                },
+                {
+                    name: 'cursor',
+                    required: false,
+                    type: 'string',
+                },
             ],
         }),
         DocResponse('offlineMessage.list', {

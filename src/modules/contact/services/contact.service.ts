@@ -20,14 +20,8 @@ import {
     contactMapApplicationStatus,
     contactMapFriendStatus,
 } from '@modules/contact/enums/contact.legacy.enum';
-import { ContactAlreadyFriendException } from '@modules/contact/exceptions/contact.already-friend.exception';
-import { ContactApplicationNotFoundException } from '@modules/contact/exceptions/contact.application-not-found.exception';
-import { ContactApplicationStatusInvalidException } from '@modules/contact/exceptions/contact.application-status-invalid.exception';
-import { ContactForbiddenException } from '@modules/contact/exceptions/contact.forbidden.exception';
-import { ContactFriendNotFoundException } from '@modules/contact/exceptions/contact.friend-not-found.exception';
-import { ContactSelfOperationInvalidException } from '@modules/contact/exceptions/contact.self-operation-invalid.exception';
-import { ContactUserInactiveException } from '@modules/contact/exceptions/contact.user-inactive.exception';
-import { ContactUserNotFoundException } from '@modules/contact/exceptions/contact.user-not-found.exception';
+import { EnumContactStatusCodeError } from '@modules/contact/enums/contact.status-code.enum';
+import { ContactException } from '@modules/contact/exceptions/contact.exception';
 import {
     IContactFriendApplication,
     IContactFriendApplicationRealtimePayload,
@@ -84,10 +78,12 @@ export class ContactService implements IContactService {
         const receiver =
             await this.contactRepository.findUserByIdentifier(
                 receiverIdentifier
-            );
+        );
         this.assertUserAvailable(receiver);
         if (sender.id === receiver.id) {
-            throw new ContactSelfOperationInvalidException();
+            throw new ContactException(
+                EnumContactStatusCodeError.selfOperationInvalid
+            );
         }
 
         const friend = await this.contactRepository.findFriendRelation(
@@ -95,7 +91,9 @@ export class ContactService implements IContactService {
             receiver.id
         );
         if (friend?.status === EnumFriendStatus.normal) {
-            throw new ContactAlreadyFriendException();
+            throw new ContactException(
+                EnumContactStatusCodeError.alreadyFriend
+            );
         }
 
         const now = this.helperService.dateCreate();
@@ -229,7 +227,9 @@ export class ContactService implements IContactService {
         }
 
         if (statusCode !== ContactLegacyApplicationStatus.accepted) {
-            throw new ContactApplicationStatusInvalidException();
+            throw new ContactException(
+                EnumContactStatusCodeError.applicationStatusInvalid
+            );
         }
 
         const [senderIdentifier] = receiveUserUuids;
@@ -246,7 +246,9 @@ export class ContactService implements IContactService {
                 now
             );
             if (!result) {
-                throw new ContactApplicationNotFoundException();
+                throw new ContactException(
+                    EnumContactStatusCodeError.applicationNotFound
+                );
             }
 
             await this.pushNewSingleConversation(
@@ -266,7 +268,11 @@ export class ContactService implements IContactService {
                 },
             };
         } catch (err: unknown) {
-            if (err instanceof ContactApplicationNotFoundException) {
+            if (
+                err instanceof ContactException &&
+                err.statusCode ===
+                    EnumContactStatusCodeError.applicationNotFound
+            ) {
                 throw err;
             }
             throw new AppUnknownException(err);
@@ -289,7 +295,7 @@ export class ContactService implements IContactService {
             friend.id
         );
         if (!relation || relation.status === EnumFriendStatus.deleted) {
-            throw new ContactFriendNotFoundException();
+            throw new ContactException(EnumContactStatusCodeError.friendNotFound);
         }
 
         try {
@@ -317,7 +323,7 @@ export class ContactService implements IContactService {
             friend.id
         );
         if (count === 0) {
-            throw new ContactFriendNotFoundException();
+            throw new ContactException(EnumContactStatusCodeError.friendNotFound);
         }
 
         return { data: { message: '拉黑好友成功' } };
@@ -367,7 +373,7 @@ export class ContactService implements IContactService {
             await this.contactRepository.findUserByIdentifier(userIdentifier);
         this.assertUserAvailable(actor);
         if (actor.id !== authUserId) {
-            throw new ContactForbiddenException();
+            throw new ContactException(EnumContactStatusCodeError.forbidden);
         }
 
         return actor;
@@ -381,7 +387,7 @@ export class ContactService implements IContactService {
         );
         const missing = users.some(user => !user);
         if (missing) {
-            throw new ContactUserNotFoundException();
+            throw new ContactException(EnumContactStatusCodeError.userNotFound);
         }
 
         return users as IContactUser[];
@@ -391,10 +397,10 @@ export class ContactService implements IContactService {
         user: IContactUser | null
     ): asserts user is IContactUser {
         if (!user) {
-            throw new ContactUserNotFoundException();
+            throw new ContactException(EnumContactStatusCodeError.userNotFound);
         }
         if (user.status !== EnumUserStatus.active) {
-            throw new ContactUserInactiveException();
+            throw new ContactException(EnumContactStatusCodeError.userInactive);
         }
     }
 

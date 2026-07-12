@@ -118,6 +118,13 @@ export class OfflineMessageResponseDto {
 
 export class OfflineMessageListResponseDto {
     @ApiProperty({
+        required: false,
+        nullable: true,
+    })
+    @Expose()
+    nextCursor: string | null;
+
+    @ApiProperty({
         required: true,
         type: [OfflineMessageResponseDto],
     })
